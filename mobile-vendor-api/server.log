@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/home/andi-liani/code/haus2/mobile-vendor-api/run.py", line 7, in <module>
+    socketio.run(app, debug=False, port=5001, allow_unsafe_werkzeug=True)
+  File "/home/andi-liani/virtual/venv/lib/python3.12/site-packages/flask_socketio/__init__.py", line 684, in run
+    run_server()
+  File "/home/andi-liani/virtual/venv/lib/python3.12/site-packages/flask_socketio/__init__.py", line 661, in run_server
+    eventlet_socket = eventlet.listen(addresses[0][4],
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/andi-liani/virtual/venv/lib/python3.12/site-packages/eventlet/convenience.py", line 78, in listen
+    sock.bind(addr)
+OSError: [Errno 98] Address already in use

@@ -1,0 +1,10 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-JWT-Extended
+redis
+Flask-SocketIO
+Flask-CORS
+sqlalchemy-serializer
+marshmallow-sqlalchemy
+psycopg2-binary
