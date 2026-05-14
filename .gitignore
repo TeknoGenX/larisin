@@ -1,1 +1,27 @@
-/.vscode
+# Build artifacts
+mobile_vendor_app/build/
+mobile_vendor_app/.dart_tool/
+mobile_vendor_app/.flutter-plugins
+mobile_vendor_app/.flutter-plugins-dependencies
+mobile_vendor_app/.packages
+mobile_vendor_app/linux/flutter/ephemeral/
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
+venv/
+ENV/
+mobile-vendor-api/instance/
+mobile-vendor-api/server.log
+mobile-vendor-api/backend.log
+mobile-vendor-api/error_debug.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
