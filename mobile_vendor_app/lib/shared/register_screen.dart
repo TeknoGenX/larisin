@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'auth_provider.dart';
+import 'app_theme.dart';
 
 class RegisterScreen extends StatefulWidget {
-  final String role; // 'customer' or 'vendor'
+  final String role;
   const RegisterScreen({super.key, required this.role});
 
   @override
@@ -17,71 +18,122 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
 
   void _register() async {
+    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
-    final success = await Provider.of<AuthProvider>(context, listen: false).register(
+    final success = await Provider.of<AuthProvider>(context, listen: false)
+        .register(
       _usernameController.text,
       _passwordController.text,
       widget.role,
-      ktpImage: widget.role == 'vendor' ? _ktpController.text : null,
+      ktpImageUrl: widget.role == 'vendor' ? _ktpController.text : null,
     );
     
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
     
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registrasi Berhasil. Silahkan Login.')),
-      );
-      Navigator.of(context).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.role == 'vendor' 
+              ? 'Registration success! Please wait for admin approval.' 
+              : 'Registration success! You can now login.'),
+            backgroundColor: AppTheme.accentGreen,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registrasi Gagal.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registration failed. Username might exist.')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = widget.role == 'customer' ? Colors.blue : Colors.orange;
-
     return Scaffold(
-      appBar: AppBar(title: Text('Daftar Akun ${widget.role == "customer" ? "Customer" : "Vendor"}'), backgroundColor: themeColor),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 20),
-              TextField(
-                controller: _usernameController,
-                decoration: const InputDecoration(labelText: 'Username', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 15),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
-              ),
-              if (widget.role == 'vendor') ...[
-                const SizedBox(height: 15),
-                TextField(
-                  controller: _ktpController,
-                  decoration: const InputDecoration(labelText: 'Link Foto KTP', border: OutlineInputBorder(), hintText: 'Contoh: https://image-hosting.com/ktp-anda.jpg'),
-                ),
-                const Padding(
-                  padding: EdgeInsets.only(top: 8.0),
-                  child: Text('Khusus Vendor wajib menyertakan link foto KTP untuk proses verifikasi admin.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                ),
-              ],
-              const SizedBox(height: 25),
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: _register,
-                      style: ElevatedButton.styleFrom(backgroundColor: themeColor, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 15)),
-                      child: const Text('DAFTAR SEKARANG'),
-                    ),
+      appBar: AppBar(
+        title: Text('Register as ${widget.role.toUpperCase()}'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      extendBodyBehindAppBar: true,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.primaryIndigo,
+              AppTheme.primaryIndigo.withValues(alpha: 0.8),
             ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(Icons.person_add_outlined, size: 48, color: AppTheme.primaryIndigo),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Create Account',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      TextField(
+                        controller: _usernameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Username',
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: Icon(Icons.lock_outline),
+                        ),
+                      ),
+                      if (widget.role == 'vendor') ...[
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _ktpController,
+                          decoration: const InputDecoration(
+                            labelText: 'KTP Image URL (KYC)',
+                            prefixIcon: Icon(Icons.badge_outlined),
+                            helperText: 'For vendor verification purposes',
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 32),
+                      _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : ElevatedButton(
+                              onPressed: _register,
+                              child: const Text('CREATE ACCOUNT'),
+                            ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

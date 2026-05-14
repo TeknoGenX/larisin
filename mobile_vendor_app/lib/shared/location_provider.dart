@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 
 class LocationProvider with ChangeNotifier {
   Timer? _timer;
-  final String _baseUrl = 'http://127.0.0.1:5002';
+  final String _baseUrl = 'http://127.0.0.1:5003';
 
   void startTracking(String token) {
     _timer = Timer.periodic(const Duration(seconds: 30), (timer) async {

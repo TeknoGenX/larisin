@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 class ProductProvider with ChangeNotifier {
   List<dynamic> _products = [];
   bool _isLoading = false;
-  final String _baseUrl = 'http://127.0.0.1:5002';
+  final String _baseUrl = 'http://127.0.0.1:5003';
 
   List<dynamic> get products => _products;
   bool get isLoading => _isLoading;

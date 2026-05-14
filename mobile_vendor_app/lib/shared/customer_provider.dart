@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 class CustomerProvider with ChangeNotifier {
   List<dynamic> _nearbyVendors = [];
   bool _isLoading = false;
-  final String _baseUrl = 'http://127.0.0.1:5002';
+  final String _baseUrl = 'http://127.0.0.1:5003';
 
   List<dynamic> get nearbyVendors => _nearbyVendors;
   bool get isLoading => _isLoading;
@@ -29,6 +29,26 @@ class CustomerProvider with ChangeNotifier {
       print('Error fetching nearby vendors: $e');
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void updateVendorLocation(Map<String, dynamic> data) {
+    final index = _nearbyVendors.indexWhere((v) => v['username'] == data['username']);
+    if (index != -1) {
+      _nearbyVendors[index]['latitude'] = data['lat'];
+      _nearbyVendors[index]['longitude'] = data['lng'];
+      notifyListeners();
+    } else if (data['is_active'] == true && data['is_verified'] == true) {
+      // Add new vendor if not in list but active and verified
+      _nearbyVendors.add({
+        'id': data['id'],
+        'username': data['username'],
+        'latitude': data['lat'],
+        'longitude': data['lng'],
+        'is_active': data['is_active'],
+        'is_verified': data['is_verified'],
+      });
       notifyListeners();
     }
   }

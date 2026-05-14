@@ -1,0 +1,1 @@
+ /home/andi-liani/code/haus2/mobile_vendor_app/.dart_tool/flutter_build/fcea2b29510762233399bed15c7bdabd/native_assets.json: 

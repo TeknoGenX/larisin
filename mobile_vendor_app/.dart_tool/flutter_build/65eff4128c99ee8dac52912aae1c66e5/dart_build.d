@@ -1,0 +1,1 @@
+ /home/andi-liani/code/haus2/mobile_vendor_app/.dart_tool/flutter_build/65eff4128c99ee8dac52912aae1c66e5/dart_build_result.json:  /home/andi-liani/code/haus2/mobile_vendor_app/.dart_tool/package_config.json /home/andi-liani/code/haus2/mobile_vendor_app/pubspec.yaml /home/andi-liani/flutter/bin/cache/dart-sdk/version

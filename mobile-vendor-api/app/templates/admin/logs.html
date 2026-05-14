@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Audit Logs - Haus2 Admin{% endblock %}
+{% block header_title %}System Audit Logs{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b bg-gray-50/50 flex justify-between items-center">
+        <h3 class="font-bold text-gray-800">Action History</h3>
+        <span class="text-xs text-gray-500">Records of all administrative actions</span>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for log in logs %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                        {{ log.created_at.strftime('%d/%m/%Y %H:%M:%S') }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-bold text-gray-900">{{ log.user.username if log.user else 'System' }}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% set action_colors = {
+                            'LOGIN': 'text-blue-600 bg-blue-50',
+                            'CREATE_PRODUCT': 'text-green-600 bg-green-50',
+                            'DELETE_PRODUCT': 'text-red-600 bg-red-50',
+                            'APPROVE_VENDOR': 'text-indigo-600 bg-indigo-50',
+                            'REJECT_VENDOR': 'text-orange-600 bg-orange-50'
+                        } %}
+                        <span class="px-2 py-1 text-[10px] font-black rounded-md {{ action_colors.get(log.action, 'text-gray-600 bg-gray-50') }}">
+                            {{ log.action }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-600">
+                        {{ log.target_type }} #{{ log.target_id if log.target_id else '-' }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500">
+                        {{ log.details }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-400">
+                        {{ log.ip_address }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500 italic">
+                        No audit logs found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

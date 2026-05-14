@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthProvider with ChangeNotifier {
   String? _token;
   Map<String, dynamic>? _user;
-  final String _baseUrl = 'http://127.0.0.1:5002';
+  final String _baseUrl = 'http://127.0.0.1:5003';
 
   String? get token => _token;
   Map<String, dynamic>? get user => _user;
@@ -47,14 +47,14 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> register(String username, String password, String role, {String? ktpImage}) async {
+  Future<bool> register(String username, String password, String role, {String? ktpImageUrl}) async {
     try {
       final body = {
         'username': username,
         'password': password,
         'role': role,
       };
-      if (ktpImage != null) body['ktp_image_url'] = ktpImage;
+      if (ktpImageUrl != null) body['ktp_image_url'] = ktpImageUrl;
 
       final response = await http.post(
         Uri.parse('$_baseUrl/auth/register'),

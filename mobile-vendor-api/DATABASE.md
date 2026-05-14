@@ -1,32 +1,31 @@
 # 🗄️ Database Architecture: Haus2 Ecosystem
 
-Sistem menggunakan SQLite (Dev) dengan SQLAlchemy untuk menjamin integritas data transaksi.
+Sistem menggunakan SQLite dengan SQLAlchemy untuk menjamin integritas data transaksi.
 
 ## 📐 Schema Overview
 
 ### 👤 `users` Table
-- `username`: Unique.
+- `username`: Unique identity.
 - `role`: [admin, vendor, customer].
-- `is_verified`: Default `false` (Wajib disetujui admin sebelum berjualan).
-- `failed_login_attempts`: Brute Force protection counter.
-- `locked_until`: Timestamp blokir akun otomatis.
-- `latitude`, `longitude`: Koordinat GPS terakhir.
+- `latitude`, `longitude`: Lokasi real-time terakhir.
+- `is_verified`: Status KYC Vendor.
+
+### 💬 `chat_messages` Table
+- `message_type`: [text, voice, image, product].
+- `media_url`: Path file audio/gambar di server.
+- `product_id`: Relasi ke produk (untuk kartu produk).
+- `is_read`: Status baca pesan (Read Receipts).
 
 ### 🍱 `products` & `daily_stocks`
-- `products`: Katalog global (nama, deskripsi, harga).
-- `daily_stocks`: Jumlah stok spesifik per Vendor per Hari. Otomatis terpotong saat pesanan masuk.
+- `daily_stocks`: Stok spesifik per vendor per hari. Stok di kartu chat diambil secara dinamis dari tabel ini.
 
 ### 🧾 `orders` & `order_items`
-- `orders`: Status (`pending` -> `paid` -> `processing` -> `on_delivery` -> `delivered`).
-- `order_items`: Menyimpan snapshot `price_at_order` saat transaksi terjadi.
+- Menjamin integrasi harga saat transaksi terjadi via snapshot `price_at_order`.
 
-### ⭐️ `reviews`
-- Berelasi unik dengan satu `Order ID` untuk mencegah spam ulasan.
+## ⚙️ Konfigurasi & Maintenance
+- **Jalur Absolut:** Database dikonfigurasi menggunakan `os.path.abspath` di `app/__init__.py` untuk menghindari masalah *working directory*.
+- **Inisialisasi Ulang:** Gunakan `python reinit_db.py` untuk menghapus dan membuat ulang seluruh tabel sesuai model terbaru.
+- **Seeding:** Gunakan `seed_products.py` dan `seed_users.py` untuk mengisi data awal pengujian.
 
 ## 🔐 Concurrency Control
-Sistem mengamankan pengurangan stok menggunakan **Pessimistic Locking**:
-- **SQLAlchemy `with_for_update()`**: Digunakan saat proses checkout untuk mengunci baris stok vendor sehingga tidak terjadi *double-spending* atau *race condition* stok saat banyak pembeli memesan produk yang sama secara bersamaan.
-
-## 📍 Vendor Locations
-- Koordinat diperbarui setiap 30 detik dari aplikasi Flutter Vendor.
-- Customer hanya menarik data vendor yang memiliki `is_active = True`.
+- **Pessimistic Locking (`with_for_update`)**: Digunakan saat checkout untuk memastikan stok tidak dipotong dua kali oleh transaksi yang bersamaan.

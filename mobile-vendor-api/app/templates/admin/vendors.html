@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Vendors - Haus2 Admin{% endblock %}
+{% block header_title %}Vendor Management{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b flex flex-col sm:flex-row justify-between items-center bg-gray-50/50">
+        <div class="flex items-center space-x-4 mb-4 sm:mb-0">
+            <a href="{{ url_for('web_admin.vendors', status='all') }}" class="px-3 py-1 text-sm font-medium rounded-full {% if current_filter == 'all' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border hover:bg-gray-50{% endif %}">
+                All
+            </a>
+            <a href="{{ url_for('web_admin.vendors', status='verified') }}" class="px-3 py-1 text-sm font-medium rounded-full {% if current_filter == 'verified' %}bg-green-600 text-white{% else %}bg-white text-gray-600 border hover:bg-gray-50{% endif %}">
+                Verified
+            </a>
+            <a href="{{ url_for('web_admin.vendors', status='pending') }}" class="px-3 py-1 text-sm font-medium rounded-full {% if current_filter == 'pending' %}bg-yellow-600 text-white{% else %}bg-white text-gray-600 border hover:bg-gray-50{% endif %}">
+                Pending
+            </a>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor Info</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verification</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KYC Data</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store Photo</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for vendor in vendors %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+                                {{ vendor.username[0]|upper }}
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-bold text-gray-900">{{ vendor.username }}</div>
+                                <div class="text-xs text-gray-500">ID: #{{ vendor.id }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if vendor.is_verified %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Verified
+                        </span>
+                        {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            Pending
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if vendor.is_active %}
+                        <span class="flex items-center text-xs text-green-600 font-medium">
+                            <span class="h-2 w-2 rounded-full bg-green-600 mr-2"></span> Active
+                        </span>
+                        {% else %}
+                        <span class="flex items-center text-xs text-gray-400 font-medium">
+                            <span class="h-2 w-2 rounded-full bg-gray-400 mr-2"></span> Offline
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if vendor.ktp_image_url %}
+                        <a href="{{ vendor.ktp_image_url }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            KTP
+                        </a>
+                        {% else %}
+                        <span class="text-gray-400 italic">No KTP</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if vendor.store_image_url %}
+                        <a href="{{ vendor.store_image_url }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            Foto Toko
+                        </a>
+                        {% else %}
+                        <span class="text-gray-400 italic">No Photo</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        {% if vendor.is_verified %}
+                        <a href="{{ url_for('web_admin.update_vendor_stock', vendor_id=vendor.id) }}" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded-md mr-2 transition-colors">Manage Stock</a>
+                        {% endif %}
+                        
+                        {% if not vendor.is_verified %}
+                        <a href="{{ url_for('web_admin.verify_action', user_id=vendor.id, action='approve') }}" class="text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded-md mr-2 transition-colors">Approve</a>
+                        <a href="{{ url_for('web_admin.verify_action', user_id=vendor.id, action='reject') }}" onclick="return confirm('Reject this vendor?')" class="text-red-600 hover:text-red-900">Reject</a>
+                        {% else %}
+                        <span class="text-gray-400">Verified</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 italic">
+                        No vendors found for this filter.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

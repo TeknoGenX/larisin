@@ -18,7 +18,7 @@ class CartItem {
 
 class CartProvider with ChangeNotifier {
   Map<int, CartItem> _items = {};
-  final String _baseUrl = 'http://127.0.0.1:5002';
+  final String _baseUrl = 'http://127.0.0.1:5003';
 
   Map<int, CartItem> get items => _items;
 

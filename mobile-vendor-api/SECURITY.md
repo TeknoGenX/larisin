@@ -1,21 +1,15 @@
 # 🛡️ Security Implementation Report: Haus2 Ecosystem
 
-Sistem ini dirancang dengan prinsip **Security by Design** untuk melindungi data pengguna dan integritas transaksi.
+Sistem menerapkan beberapa lapisan keamanan untuk melindungi pengguna.
 
-## 🔑 1. Akses Kontrol (JWT)
-- Menggunakan JSON Web Token dengan payload `role`.
-- Token berlaku selama 24 jam.
-- Filter Role otomatis untuk membedakan akses Admin, Vendor, dan Customer via Decorator `@role_required`.
+## 🔑 1. Akses Kontrol & Real-time
+- **JWT (Stateless):** Semua endpoint API mobile dilindungi oleh token JWT 24 jam.
+- **Socket Rooms:** Pengguna hanya bergabung ke room `user_{id}` mereka sendiri untuk menjamin pesan chat tidak bocor ke pihak lain.
 
-## 🛡️ 2. Perlindungan Serangan
-- **Brute Force Protection:** Salah password 5x mengakibatkan blokir akun 15 menit otomatis.
-- **Review Anti-Spam:** Batasan ulasan hanya untuk pesanan yang sudah `delivered`.
-- **Public Admin Lock:** Registrasi publik dilarang menggunakan `role: admin`.
+## 🛡️ 2. Perlindungan Media & File
+- **Mime-type Validation:** Endpoint `/upload` memvalidasi ekstensi file (hanya gambar/audio tertentu) untuk mencegah eksekusi skrip berbahaya.
+- **UUID Filenaming:** File yang diunggah diganti namanya menggunakan UUID untuk menghindari konflik nama file dan penyisipan path.
 
-## 🗺️ 3. Integritas Data GPS
-- Validasi koordinat geografis bumi saat pengiriman dari perangkat vendor.
-- Pemisahan data lokasi yang bersifat sementara (In-memory ready jika pindah ke Redis).
-
-## 💰 4. Integritas Transaksi
-- **Pessimistic Locking:** Penggunaan database transaction saat pemotongan stok otomatis.
-- **Double Validation:** Stok dicek saat checkout untuk mencegah pesanan melebihi ketersediaan.
+## 💰 3. Integritas Transaksi
+- **Database Transactions:** Pengurangan stok dan pembuatan pesanan dibungkus dalam satu transaksi database. Jika satu gagal, seluruh proses dibatalkan (*Atomicity*).
+- **Vendor Verification:** Fitur stok dan jualan hanya aktif bagi vendor yang sudah disetujui Admin.

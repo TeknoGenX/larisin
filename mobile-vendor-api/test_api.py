@@ -4,10 +4,10 @@ import os
 from app import create_app, db
 from app.models import User, Product, DailyStock
 
-# Test credentials from environment variables
-TEST_VENDOR_PASSWORD = os.getenv('TEST_VENDOR_PASSWORD')
-TEST_CUSTOMER_PASSWORD = os.getenv('TEST_CUSTOMER_PASSWORD')
-TEST_ADMIN_PASSWORD = os.getenv('TEST_ADMIN_PASSWORD')
+# Test credentials from environment variables with defaults
+TEST_VENDOR_PASSWORD = os.getenv('TEST_VENDOR_PASSWORD', 'password123')
+TEST_CUSTOMER_PASSWORD = os.getenv('TEST_CUSTOMER_PASSWORD', 'pembeli123')
+TEST_ADMIN_PASSWORD = os.getenv('TEST_ADMIN_PASSWORD', 'password123')
 
 @pytest.fixture
 def client():
@@ -26,7 +26,8 @@ def client():
             admin.set_password(TEST_ADMIN_PASSWORD)
             db.session.add(admin)
             db.session.commit()
-        yield client
+            global_product_id = p.id
+        yield client, global_product_id
         with app.app_context():
             db.session.remove()
             db.drop_all()
@@ -34,6 +35,7 @@ def client():
         os.remove(db_path)
 
 def test_full_business_flow(client):
+    client, product_id = client
     # 1. Register Vendor
     res = client.post('/auth/register', json={"username": "v_final", "password": TEST_VENDOR_PASSWORD, "role": "vendor"})
     assert res.status_code == 201
@@ -43,7 +45,7 @@ def test_full_business_flow(client):
     login_res = client.post('/auth/login', json={"username": "admin_final", "password": TEST_ADMIN_PASSWORD})
     assert login_res.status_code == 200
     admin_token = login_res.get_json()['access_token']
-    
+
     # 3. Verify Vendor
     res = client.patch(f'/admin/verify-vendor/{vendor_id}', 
                       headers={"Authorization": f"Bearer {admin_token}"},
@@ -53,10 +55,9 @@ def test_full_business_flow(client):
     # 4. Vendor Login & Update Stock
     login_res = client.post('/auth/login', json={"username": "v_final", "password": TEST_VENDOR_PASSWORD})
     v_token = login_res.get_json()['access_token']
-    res = client.post('/vendor/stock', headers={"Authorization": f"Bearer {v_token}"},
-                     json=[{"product_id": 1, "quantity": 10}])
+    res = client.post('/vendor/stock', headers={"Authorization": f"Bearer {v_token}"}, 
+                     json=[{"product_id": product_id, "quantity": 10}])
     assert res.status_code == 200
-
     # 5. Customer Flow (Register -> Login -> Order)
     client.post('/auth/register', json={"username": "c_final", "password": TEST_CUSTOMER_PASSWORD, "role": "customer"})
     login_res = client.post('/auth/login', json={"username": "c_final", "password": TEST_CUSTOMER_PASSWORD})

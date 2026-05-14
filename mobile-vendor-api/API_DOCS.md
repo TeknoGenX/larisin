@@ -3,31 +3,30 @@
 Seluruh request wajib menyertakan header `Content-Type: application/json`. Endpoint yang dilindungi membutuhkan header `Authorization: Bearer <JWT_TOKEN>`.
 
 ## 🛡️ Autentikasi (`/auth`)
-- `POST /auth/register`: Pendaftaran Customer/Vendor. (Kirim `ktp_image_url` untuk vendor).
-- `POST /auth/login`: Login akun. Mengembalikan `access_token` dan detail user. (Proteksi Brute-force aktif).
+- `POST /auth/register`: Pendaftaran Customer/Vendor.
+- `POST /auth/login`: Login akun. Mengembalikan `access_token` dan detail user.
 
-## 🏢 Admin API (`/admin`)
-- `GET /admin/pending-vendors`: Daftar vendor yang menunggu verifikasi KYC.
-- `PATCH /admin/verify-vendor/<id>`: Menyetujui atau menolak vendor baru.
-- `POST /admin/products`: Menambahkan menu minuman baru ke katalog global.
+## 💬 Real-time Chat (`/chat`)
+- `POST /chat/send`: Mengirim pesan teks.
+- `GET /chat/history/<other_id>`: Mengambil riwayat pesan antara dua user.
+- `GET /chat/conversations`: Mendapatkan daftar percakapan aktif dengan info unread.
+- `PATCH /chat/read/<other_id>`: Menandai pesan sebagai dibaca (Centang Biru).
+- `POST /chat/upload/voice`: Upload rekaman suara (.m4a).
+- `POST /chat/upload/image`: Upload gambar (.jpg, .png).
+- `POST /chat/send-product`: Mengirim kartu produk interaktif.
 
 ## 🚲 Vendor Operations (`/vendor`)
-- `GET /vendor/products`: Katalog produk resmi dari pusat.
-- `POST /vendor/stock`: Update jumlah stok jualan (Wajib akun Verified).
-- `POST /vendor/location`: Update posisi GPS terbaru (Otomatis setiap 30 detik).
-- `GET /vendor/orders`: Daftar pesanan masuk untuk diproses.
-- `PATCH /vendor/orders/<id>/status`: Update status pesanan (`processing` -> `on_delivery`).
+- `GET /vendor/products`: Katalog produk resmi.
+- `POST /vendor/stock`: Update stok harian.
+- `POST /vendor/location`: Update posisi GPS (Real-time via Socket.IO).
+- `GET /vendor/orders`: Daftar pesanan masuk.
 
 ## 🛒 Customer Operations (`/customer` & `/order`)
-- `GET /customer/nearby-vendors`: Mencari vendor aktif di sekitar (Radius search).
-- `GET /customer/vendor-stock/<vendor_id>`: Melihat sisa stok pedagang tertentu.
-- `POST /order/`: Checkout keranjang belanja (Pessimistic Locking aktif).
+- `GET /customer/nearby-vendors`: Mencari vendor aktif di sekitar.
+- `POST /order/`: Checkout keranjang belanja (Pessimistic Locking).
 - `GET /order/history`: Riwayat belanja pribadi.
-- `PATCH /order/<id>/complete`: Konfirmasi pesanan diterima (Ubah ke `delivered`).
-- `POST /customer/review`: Memberikan rating (1-5) & ulasan.
-- `GET /customer/vendor-reviews/<vendor_id>`: Melihat testimoni pelanggan lain.
+- `POST /customer/review`: Memberikan rating & ulasan.
 
 ## 🖥️ Web Admin Dashboard (`/web-admin`)
 - `GET /web-admin/login`: Halaman login dashboard.
-- `GET /web-admin/dashboard`: Visualisasi statistik, Peta live, dan Verifikasi KYC.
-- `GET /web-admin/orders/export`: Download seluruh transaksi dalam format **CSV**.
+- `GET /web-admin/dashboard`: Visualisasi statistik & Peta live.

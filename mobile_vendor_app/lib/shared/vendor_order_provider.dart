@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 class VendorOrderProvider with ChangeNotifier {
   List<dynamic> _orders = [];
   bool _isLoading = false;
-  final String _baseUrl = 'http://127.0.0.1:5002';
+  final String _baseUrl = 'http://127.0.0.1:5003';
 
   List<dynamic> get orders => _orders;
   bool get isLoading => _isLoading;
@@ -31,6 +31,11 @@ class VendorOrderProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void handleNewOrder(Map<String, dynamic> orderData, String token) {
+    // We could either add it to the list or just re-fetch all for simplicity/correctness
+    fetchOrders(token);
   }
 
   Future<bool> updateStatus(String token, int orderId, String newStatus) async {

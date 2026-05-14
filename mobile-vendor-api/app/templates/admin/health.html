@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}System Health - Haus2 Admin{% endblock %}
+{% block header_title %}System Health & Monitoring{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <!-- CPU Usage -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h3 class="text-sm font-bold text-gray-500 uppercase mb-4">CPU Usage</h3>
+        <div class="relative pt-1">
+            <div class="flex mb-2 items-center justify-between">
+                <div>
+                    <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full {% if cpu > 80 %}text-red-600 bg-red-200{% else %}text-indigo-600 bg-indigo-200{% endif %}">
+                        {{ 'Critical' if cpu > 80 else 'Healthy' }}
+                    </span>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs font-semibold inline-block text-indigo-600">
+                        {{ cpu }}%
+                    </span>
+                </div>
+            </div>
+            <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-indigo-100">
+                <div style="width:{{ cpu }}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center {% if cpu > 80 %}bg-red-500{% else %}bg-indigo-500{% endif %}"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RAM Usage -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h3 class="text-sm font-bold text-gray-500 uppercase mb-4">Memory (RAM)</h3>
+        {% if ram %}
+        <div class="flex justify-between mb-2">
+            <span class="text-xs text-gray-500">{{ (ram.used / (1024**3))|round(2) }} GB Used</span>
+            <span class="text-xs text-gray-500">{{ (ram.total / (1024**3))|round(2) }} GB Total</span>
+        </div>
+        <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-green-100">
+            <div style="width:{{ ram.percent }}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500"></div>
+        </div>
+        <p class="text-right text-xs font-bold text-green-600">{{ ram.percent }}%</p>
+        {% else %}
+        <p class="text-xs text-gray-400 italic">Data unavailable. Install psutil.</p>
+        {% endif %}
+    </div>
+
+    <!-- Disk Usage -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h3 class="text-sm font-bold text-gray-500 uppercase mb-4">Disk Storage</h3>
+        {% if disk %}
+        <div class="flex justify-between mb-2">
+            <span class="text-xs text-gray-500">{{ (disk.used / (1024**3))|round(2) }} GB Used</span>
+            <span class="text-xs text-gray-500">{{ (disk.total / (1024**3))|round(2) }} GB Total</span>
+        </div>
+        <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-yellow-100">
+            <div style="width:{{ disk.percent }}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-yellow-500"></div>
+        </div>
+        <p class="text-right text-xs font-bold text-yellow-600">{{ disk.percent }}%</p>
+        {% else %}
+        <p class="text-xs text-gray-400 italic">Data unavailable. Install psutil.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Database Stats -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b bg-gray-50/50">
+            <h3 class="font-bold text-gray-800">Database Record Counts</h3>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="text-sm text-gray-600">Total Registered Users</span>
+                    <span class="font-bold text-indigo-600">{{ db_stats.users }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="text-sm text-gray-600">Total Transactions</span>
+                    <span class="font-bold text-indigo-600">{{ db_stats.orders }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="text-sm text-gray-600">Active Products</span>
+                    <span class="font-bold text-indigo-600">{{ db_stats.products }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="text-sm text-gray-600">Audit Log Entries</span>
+                    <span class="font-bold text-indigo-600">{{ db_stats.audit_logs }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b bg-gray-50/50">
+            <h3 class="font-bold text-gray-800">Server Environment</h3>
+        </div>
+        <table class="min-w-full divide-y divide-gray-200">
+            <tbody class="bg-white divide-y divide-gray-200">
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500">Operating System</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ system_info.os }} {{ system_info.os_release }}</td>
+                </tr>
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500">Python Version</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ system_info.python_version }}</td>
+                </tr>
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500">Last Boot Time</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ system_info.boot_time }}</td>
+                </tr>
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500">Database Driver</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SQLite (SQLAlchemy)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

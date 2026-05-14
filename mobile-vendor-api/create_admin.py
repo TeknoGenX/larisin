@@ -27,9 +27,9 @@ def create_initial_admin():
         print("-----------------------------------------")
         print("AKUN ADMIN BERHASIL DIBUAT!")
         print(f"Username: {username}")
-        print(f"Password: {password}")
+        print("Password: {password}")
         print("-----------------------------------------")
-        print("Silahkan login di: http://127.0.0.1:5001/web-admin/login")
+        print("Silahkan login di: http://127.0.0.1:5003/web-admin/login")
 
 if __name__ == "__main__":
     create_initial_admin()

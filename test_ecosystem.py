@@ -1,20 +1,25 @@
 import requests
 import time
 
-BASE_URL = "http://127.0.0.1:5002"
+BASE_URL = "http://127.0.0.1:5003"
 
 def test_flow():
     print("--- MULAI PENGUJIAN END-TO-END ---")
+    ts = int(time.time())
+    vendor_username = f"vendor_{ts}"
+    customer_username = f"customer_{ts}"
 
     # 1. Registrasi Vendor
-    print("\n[1] Registrasi Vendor...")
+    print(f"\n[1] Registrasi Vendor: {vendor_username}...")
     v_reg = requests.post(f"{BASE_URL}/auth/register", json={
-        "username": "vendor_test",
+        "username": vendor_username,
         "password": "password123",
         "role": "vendor",
         "ktp_image_url": "https://example.com/ktp.jpg"
     })
-    print(f"Status: {v_reg.status_code}, Msg: {v_reg.json().get('msg')}")
+    v_reg_data = v_reg.json()
+    print(f"Status: {v_reg.status_code}, Msg: {v_reg_data.get('msg')}")
+    vendor_id = v_reg_data['user']['id']
 
     # 2. Login Admin & Verifikasi Vendor
     print("\n[2] Login Admin & Verifikasi Vendor...")
@@ -23,7 +28,6 @@ def test_flow():
         "password": "password123"
     })
     admin_token = admin_login.json()['access_token']
-    vendor_id = v_reg.json()['user']['id']
     
     v_verify = requests.patch(f"{BASE_URL}/admin/verify-vendor/{vendor_id}", 
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -34,15 +38,26 @@ def test_flow():
     # 3. Vendor Update Stok & Lokasi
     print("\n[3] Vendor Update Stok & Lokasi...")
     v_login = requests.post(f"{BASE_URL}/auth/login", json={
-        "username": "vendor_test",
+        "username": vendor_username,
         "password": "password123"
     })
     v_token = v_login.json()['access_token']
     
-    # Update Stok untuk Thai Tea (ID 1 dari seeding)
+    # Ambil daftar produk untuk mendapatkan ID valid
+    products_res = requests.get(f"{BASE_URL}/vendor/products",
+        headers={"Authorization": f"Bearer {v_token}"}
+    )
+    products = products_res.json()
+    if not products:
+        print("Gagal mendapatkan produk untuk update stok!")
+        return
+    product_id = products[0]['id']
+    print(f"Menggunakan produk: {products[0]['name']} (ID: {product_id})")
+    
+    # Update Stok
     v_stock = requests.post(f"{BASE_URL}/vendor/stock",
         headers={"Authorization": f"Bearer {v_token}"},
-        json=[{"product_id": 1, "quantity": 50}]
+        json=[{"product_id": product_id, "quantity": 50}]
     )
     # Update Lokasi
     v_loc = requests.post(f"{BASE_URL}/vendor/location",
@@ -52,14 +67,14 @@ def test_flow():
     print(f"Update Stok: {v_stock.status_code}, Update Lokasi: {v_loc.status_code}")
 
     # 4. Registrasi & Login Customer
-    print("\n[4] Registrasi & Login Customer...")
+    print(f"\n[4] Registrasi & Login Customer: {customer_username}...")
     requests.post(f"{BASE_URL}/auth/register", json={
-        "username": "customer_test",
+        "username": customer_username,
         "password": "pembeli123",
         "role": "customer"
     })
     c_login = requests.post(f"{BASE_URL}/auth/login", json={
-        "username": "customer_test",
+        "username": customer_username,
         "password": "pembeli123"
     })
     c_token = c_login.json()['access_token']
@@ -73,7 +88,7 @@ def test_flow():
     
     order = requests.post(f"{BASE_URL}/order/",
         headers={"Authorization": f"Bearer {c_token}"},
-        json={"vendor_id": vendor_id, "items": [{"product_id": 1, "quantity": 2}]}
+        json={"vendor_id": vendor_id, "items": [{"product_id": product_id, "quantity": 2}]}
     )
     order_id = order.json().get('order_id')
     print(f"Checkout Status: {order.status_code}, Order ID: {order_id}")

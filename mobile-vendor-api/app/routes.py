@@ -1,14 +1,17 @@
 from flask import Blueprint, jsonify, request
-from .models import db, User, Product, DailyStock, Order, OrderItem, Review
+from .models import db, User, Product, DailyStock, Order, OrderItem, Review, ChatMessage
+from . import limiter
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 from functools import wraps
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import or_
 
 auth_bp = Blueprint('auth', __name__)
 admin_bp = Blueprint('admin', __name__)
 vendor_bp = Blueprint('vendor', __name__)
 customer_bp = Blueprint('customer', __name__)
 order_bp = Blueprint('order', __name__)
+chat_bp = Blueprint('chat', __name__)
 
 # RBAC Decorator
 def role_required(role):
@@ -24,6 +27,7 @@ def role_required(role):
     return decorator
 
 @auth_bp.route('/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def register():
     data = request.get_json()
     username = data.get('username')
@@ -49,6 +53,7 @@ def register():
     return jsonify({"msg": "User created successfully", "user": user.to_dict()}), 201
 
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("5 per minute")
 def login():
     data = request.get_json()
     username = data.get('username')
@@ -69,7 +74,7 @@ def login():
         user.locked_until = None
         db.session.commit()
         
-        access_token = create_access_token(identity=user.id, additional_claims={"role": user.role})
+        access_token = create_access_token(identity=str(user.id), additional_claims={"role": user.role})
         return jsonify(access_token=access_token, user=user.to_dict()), 200
     else:
         # Increment failed attempts
@@ -130,6 +135,10 @@ def update_stock():
         
     data = request.get_json() # List of {product_id, quantity}
     for item in data:
+        product = Product.query.get(item['product_id'])
+        if not product:
+            return jsonify({"msg": f"Product {item['product_id']} not found"}), 404
+            
         stock = DailyStock.query.filter_by(vendor_id=user_id, product_id=item['product_id'], date=datetime.now(timezone.utc).date()).first()
         if stock:
             stock.quantity = item['quantity']
@@ -140,6 +149,25 @@ def update_stock():
     db.session.commit()
     return jsonify({"msg": "Stock updated successfully"}), 200
 
+@vendor_bp.route('/stock/my', methods=['GET'])
+@role_required('vendor')
+def get_my_stock():
+    user_id = get_jwt_identity()
+    stocks = DailyStock.query.filter_by(
+        vendor_id=user_id, 
+        date=datetime.now(timezone.utc).date()
+    ).all()
+    
+    result = []
+    for s in stocks:
+        result.append({
+            "product_id": s.product_id,
+            "name": s.product.name,
+            "quantity": s.quantity,
+            "price": s.product.price
+        })
+    return jsonify(result), 200
+
 @vendor_bp.route('/location', methods=['POST'])
 @role_required('vendor')
 def update_location():
@@ -149,11 +177,31 @@ def update_location():
         return jsonify({"msg": "Vendor not verified"}), 403
         
     data = request.get_json()
-    user.latitude = data.get('latitude')
-    user.longitude = data.get('longitude')
+    try:
+        lat = float(data.get('latitude'))
+        lng = float(data.get('longitude'))
+        if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+            raise ValueError("Coordinates out of range")
+    except (TypeError, ValueError):
+        return jsonify({"msg": "Invalid coordinate data"}), 400
+
+    user.latitude = lat
+    user.longitude = lng
     user.is_active = data.get('is_active', True)
     
     db.session.commit()
+
+    # Emit location update to Admin Dashboard
+    from . import socketio
+    socketio.emit('vendor_location_update', {
+        'id': user.id,
+        'username': user.username,
+        'lat': user.latitude,
+        'lng': user.longitude,
+        'is_active': user.is_active,
+        'is_verified': user.is_verified
+    })
+
     return jsonify({"msg": "Location updated successfully"}), 200
 
 @vendor_bp.route('/orders', methods=['GET'])
@@ -162,6 +210,11 @@ def vendor_orders():
     user_id = get_jwt_identity()
     orders = Order.query.filter_by(vendor_id=user_id).order_by(Order.created_at.desc()).all()
     return jsonify([o.to_dict() for o in orders]), 200
+
+@vendor_bp.route('/orders/<int:order_id>', methods=['PATCH'])
+@role_required('vendor')
+def update_order_status_alias(order_id):
+    return update_order_status(order_id)
 
 @vendor_bp.route('/orders/<int:order_id>/status', methods=['PATCH'])
 @role_required('vendor')
@@ -199,13 +252,14 @@ def get_vendor_stock(vendor_id):
     
     result = []
     for s in stocks:
-        result.append({
-            "product_id": s.product_id,
-            "name": s.product.name,
-            "price": s.product.price,
-            "quantity": s.quantity,
-            "image_url": s.product.image_url
-        })
+        if s.product:
+            result.append({
+                "product_id": s.product_id,
+                "name": s.product.name,
+                "price": s.product.price,
+                "quantity": s.quantity,
+                "image_url": s.product.image_url
+            })
     return jsonify(result), 200
 
 # --- Order Routes ---
@@ -267,6 +321,15 @@ def create_order():
             db.session.add(oi)
             
         db.session.commit()
+
+        # 3. Emit SocketIO Notification to Vendor
+        from . import socketio
+        socketio.emit('new_order', {
+            'order_id': new_order.id,
+            'total_price': new_order.total_price,
+            'customer_name': User.query.get(user_id).username
+        }, room=f"user_{vendor_id}")
+
         return jsonify({"msg": "Order created successfully", "order_id": new_order.id}), 201
         
     except Exception as e:
@@ -306,7 +369,7 @@ def complete_order(order_id):
 @customer_bp.route('/review', methods=['POST'])
 @role_required('customer')
 def submit_review():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     order_id = data.get('order_id')
     
@@ -336,3 +399,231 @@ def submit_review():
 def get_vendor_reviews(vendor_id):
     reviews = Review.query.filter_by(vendor_id=vendor_id).order_by(Review.created_at.desc()).all()
     return jsonify([r.to_dict() for r in reviews]), 200
+
+# --- Chat Routes ---
+@chat_bp.route('/send', methods=['POST'])
+@jwt_required()
+def send_message():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    receiver_id = data.get('receiver_id')
+    message = data.get('message')
+
+    if not receiver_id or not message:
+        return jsonify({"msg": "Receiver and message are required"}), 400
+
+    new_msg = ChatMessage(sender_id=user_id, receiver_id=receiver_id, message=message)
+    db.session.add(new_msg)
+    db.session.commit()
+
+    # Emit to receiver
+    from . import socketio
+    socketio.emit('new_chat_message', new_msg.to_dict(), room=f"user_{receiver_id}")
+
+    return jsonify(new_msg.to_dict()), 201
+
+@chat_bp.route('/history/<int:other_id>', methods=['GET'])
+@jwt_required()
+def get_chat_history(other_id):
+    user_id = get_jwt_identity()
+    messages = ChatMessage.query.filter(
+        or_(
+            (ChatMessage.sender_id == user_id) & (ChatMessage.receiver_id == other_id),
+            (ChatMessage.sender_id == other_id) & (ChatMessage.receiver_id == user_id)
+        )
+    ).order_by(ChatMessage.created_at.asc()).all()
+    
+    return jsonify([m.to_dict() for m in messages]), 200
+
+@chat_bp.route('/read/<int:other_id>', methods=['PATCH'])
+@jwt_required()
+def mark_as_read(other_id):
+    user_id = get_jwt_identity()
+    # Mark all unread messages from other_id to user_id as read
+    unread_messages = ChatMessage.query.filter_by(
+        sender_id=other_id, 
+        receiver_id=user_id, 
+        is_read=False
+    ).all()
+    
+    for msg in unread_messages:
+        msg.is_read = True
+    
+    db.session.commit()
+
+    # Notify the sender that their messages were read
+    from . import socketio
+    socketio.emit('messages_read', {
+        'reader_id': user_id,
+        'sender_id': other_id
+    }, room=f"user_{other_id}")
+
+    return jsonify({"msg": "Messages marked as read"}), 200
+
+@chat_bp.route('/conversations', methods=['GET'])
+@jwt_required()
+def get_conversations():
+    user_id = get_jwt_identity()
+    # This is a bit complex in SQL, so we'll do it in a simplified way for the prototype
+    # Get all unique users this user has chatted with
+    sent_to = db.session.query(ChatMessage.receiver_id).filter_by(sender_id=user_id).distinct()
+    received_from = db.session.query(ChatMessage.sender_id).filter_by(receiver_id=user_id).distinct()
+    
+    other_user_ids = set([r[0] for r in sent_to] + [r[0] for r in received_from])
+    
+    results = []
+    for other_id in other_user_ids:
+        other_user = User.query.get(other_id)
+        if not other_user: continue
+        
+        last_msg = ChatMessage.query.filter(
+            or_(
+                (ChatMessage.sender_id == user_id) & (ChatMessage.receiver_id == other_id),
+                (ChatMessage.sender_id == other_id) & (ChatMessage.receiver_id == user_id)
+            )
+        ).order_by(ChatMessage.created_at.desc()).first()
+        
+        unread_count = ChatMessage.query.filter_by(
+            sender_id=other_id,
+            receiver_id=user_id,
+            is_read=False
+        ).count()
+        
+        results.append({
+            "other_user_id": other_id,
+            "other_username": other_user.username,
+            "last_message": last_msg.message if last_msg else "",
+            "last_time": last_msg.created_at.isoformat() if last_msg else None,
+            "unread_count": unread_count
+        })
+    
+    # Sort by last message time
+    results.sort(key=lambda x: x['last_time'] if x['last_time'] else "", reverse=True)
+    return jsonify(results), 200
+import uuid
+import os
+from flask import send_from_directory
+
+@chat_bp.route('/upload/voice', methods=['POST'])
+@jwt_required()
+def upload_voice():
+    user_id = get_jwt_identity()
+    if 'file' not in request.files:
+        return jsonify({"msg": "No file part"}), 400
+    
+    file = request.files['file']
+    receiver_id = request.form.get('receiver_id')
+    
+    if file.filename == '':
+        return jsonify({"msg": "No selected file"}), 400
+    
+    if file and receiver_id:
+        filename = f"{uuid.uuid4().hex}.m4a"
+        upload_folder = os.path.join('app', 'static', 'uploads', 'voice')
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+            
+        file.save(os.path.join(upload_folder, filename))
+        
+        media_url = f"/chat/voice/{filename}"
+        
+        new_msg = ChatMessage(
+            sender_id=user_id, 
+            receiver_id=receiver_id, 
+            message='[Voice Message]',
+            message_type='voice',
+            media_url=media_url
+        )
+        db.session.add(new_msg)
+        db.session.commit()
+        
+        # Emit to receiver
+        from . import socketio
+        socketio.emit('new_chat_message', new_msg.to_dict(), room=f"user_{receiver_id}")
+        
+        return jsonify(new_msg.to_dict()), 201
+        
+    return jsonify({"msg": "Upload failed"}), 400
+
+@chat_bp.route('/voice/<filename>', methods=['GET'])
+def get_voice(filename):
+    return send_from_directory(os.path.join('static', 'uploads', 'voice'), filename)
+
+@chat_bp.route('/upload/image', methods=['POST'])
+@jwt_required()
+def upload_image():
+    user_id = get_jwt_identity()
+    if 'file' not in request.files:
+        return jsonify({"msg": "No file part"}), 400
+    
+    file = request.files['file']
+    receiver_id = request.form.get('receiver_id')
+    
+    if file.filename == '':
+        return jsonify({"msg": "No selected file"}), 400
+    
+    if file and receiver_id:
+        # Get extension
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in ['.jpg', '.jpeg', '.png', '.gif']:
+            return jsonify({"msg": "Invalid file type"}), 400
+            
+        filename = f"{uuid.uuid4().hex}{ext}"
+        upload_folder = os.path.join('app', 'static', 'uploads', 'images')
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+            
+        file.save(os.path.join(upload_folder, filename))
+        
+        media_url = f"/chat/image/{filename}"
+        
+        new_msg = ChatMessage(
+            sender_id=user_id, 
+            receiver_id=receiver_id, 
+            message='[Photo Message]',
+            message_type='image',
+            media_url=media_url
+        )
+        db.session.add(new_msg)
+        db.session.commit()
+        
+        # Emit to receiver
+        from . import socketio
+        socketio.emit('new_chat_message', new_msg.to_dict(), room=f"user_{receiver_id}")
+        
+        return jsonify(new_msg.to_dict()), 201
+        
+    return jsonify({"msg": "Upload failed"}), 400
+
+@chat_bp.route('/image/<filename>', methods=['GET'])
+def get_image(filename):
+    return send_from_directory(os.path.join('static', 'uploads', 'images'), filename)
+
+@chat_bp.route('/send-product', methods=['POST'])
+@jwt_required()
+def send_product_card():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    receiver_id = data.get('receiver_id')
+    product_id = data.get('product_id')
+
+    if not receiver_id or not product_id:
+        return jsonify({"msg": "Receiver and product are required"}), 400
+
+    product = Product.query.get_or_404(product_id)
+    
+    new_msg = ChatMessage(
+        sender_id=user_id, 
+        receiver_id=receiver_id, 
+        message_type='product',
+        product_id=product_id,
+        message=f"Cek produk ini: {product.name}"
+    )
+    db.session.add(new_msg)
+    db.session.commit()
+
+    # Emit to receiver
+    from . import socketio
+    socketio.emit('new_chat_message', new_msg.to_dict(), room=f"user_{receiver_id}")
+
+    return jsonify(new_msg.to_dict()), 201
