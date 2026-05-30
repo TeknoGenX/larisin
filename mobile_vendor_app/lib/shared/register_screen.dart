@@ -43,7 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             content: Text(widget.role == 'vendor' 
               ? 'Registration success! Please wait for admin approval.' 
               : 'Registration success! You can now login.'),
-            backgroundColor: AppTheme.accentGreen,
+            backgroundColor: AppTheme.brandAccent,
           ),
         );
         Navigator.of(context).pop();
@@ -72,8 +72,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.primaryIndigo,
-              AppTheme.primaryIndigo.withValues(alpha: 0.8),
+              AppTheme.brandPrimary,
+              AppTheme.brandPrimary.withValues(alpha: 0.8),
             ],
           ),
         ),
@@ -87,7 +87,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Icon(Icons.person_add_outlined, size: 48, color: AppTheme.primaryIndigo),
+                      const Icon(Icons.person_add_outlined, size: 48, color: AppTheme.brandPrimary),
                       const SizedBox(height: 16),
                       const Text(
                         'Create Account',

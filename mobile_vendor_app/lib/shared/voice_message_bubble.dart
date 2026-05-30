@@ -62,13 +62,13 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
         IconButton(
           icon: Icon(
             _isPlaying ? Icons.pause : Icons.play_arrow,
-            color: widget.isMe ? Colors.white : AppTheme.primaryIndigo,
+            color: widget.isMe ? Colors.white : AppTheme.brandPrimary,
           ),
           onPressed: _playPause,
         ),
         Expanded(
           child: Slider(
-            activeColor: widget.isMe ? Colors.white : AppTheme.primaryIndigo,
+            activeColor: widget.isMe ? Colors.white : AppTheme.brandPrimary,
             inactiveColor: widget.isMe ? Colors.white24 : Colors.grey[300],
             value: _position.inMilliseconds.toDouble(),
             max: _duration.inMilliseconds.toDouble() > 0 

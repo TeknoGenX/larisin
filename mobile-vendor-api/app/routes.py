@@ -65,8 +65,13 @@ def login():
         return jsonify({"msg": "Invalid username or password"}), 401
     
     # Check if account is locked
-    if user.locked_until and user.locked_until > datetime.now(timezone.utc):
-        return jsonify({"msg": f"Account locked until {user.locked_until}"}), 403
+    if user.locked_until:
+        # Normalize to aware for comparison
+        locked_until = user.locked_until.replace(tzinfo=timezone.utc) if user.locked_until.tzinfo is None else user.locked_until
+        now = datetime.now(timezone.utc)
+        
+        if locked_until > now:
+            return jsonify({"msg": f"Account locked until {user.locked_until.isoformat()}"}), 403
     
     if user.check_password(password):
         # Reset failed attempts
@@ -80,7 +85,8 @@ def login():
         # Increment failed attempts
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= 5:
-            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+            # Store as naive UTC (SQLite best practice)
+            user.locked_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
         db.session.commit()
         return jsonify({"msg": "Invalid username or password"}), 401
 
@@ -122,8 +128,24 @@ def verify_vendor(user_id):
 @vendor_bp.route('/products', methods=['GET'])
 @jwt_required()
 def list_products():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
     products = Product.query.all()
-    return jsonify([p.to_dict() for p in products]), 200
+    
+    today = datetime.now(timezone.utc).date()
+    result = []
+    for p in products:
+        d = p.to_dict()
+        if user and user.role == 'vendor':
+            stock = DailyStock.query.filter_by(
+                vendor_id=user_id, 
+                product_id=p.id, 
+                date=today
+            ).first()
+            d['current_stock'] = stock.quantity if stock else 0
+        result.append(d)
+        
+    return jsonify(result), 200
 
 @vendor_bp.route('/stock', methods=['POST'])
 @role_required('vendor')
@@ -139,7 +161,11 @@ def update_stock():
         if not product:
             return jsonify({"msg": f"Product {item['product_id']} not found"}), 404
             
-        stock = DailyStock.query.filter_by(vendor_id=user_id, product_id=item['product_id'], date=datetime.now(timezone.utc).date()).first()
+        stock = DailyStock.query.filter_by(
+            vendor_id=user_id, 
+            product_id=item['product_id'], 
+            date=datetime.now(timezone.utc).date()
+        ).with_for_update().first()
         if stock:
             stock.quantity = item['quantity']
         else:
@@ -274,20 +300,21 @@ def create_order():
     total_price = 0
     order_items_to_add = []
     
+    # 1. Lock and Verify Stock (Sorted by product_id to prevent deadlocks)
+    sorted_items = sorted(items, key=lambda x: x['product_id'])
+
     try:
-        # 1. Lock and Verify Stock
-        for item in items:
+        for item in sorted_items:
             product = Product.query.get(item['product_id'])
             if not product:
                 return jsonify({"msg": f"Product {item['product_id']} not found"}), 404
-                
+
             # Pessimistic Locking on the stock row
             stock = DailyStock.query.filter_by(
-                vendor_id=vendor_id, 
-                product_id=item['product_id'], 
+                vendor_id=vendor_id,
+                product_id=item['product_id'],
                 date=datetime.now(timezone.utc).date()
-            ).with_for_update().first()
-            
+            ).with_for_update().first()            
             if not stock or stock.quantity < item['quantity']:
                 db.session.rollback()
                 return jsonify({"msg": f"Insufficient stock for {product.name}"}), 400

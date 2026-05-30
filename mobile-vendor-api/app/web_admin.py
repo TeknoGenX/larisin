@@ -53,6 +53,9 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(username=username, role='admin').first()
         if user and user.check_password(password):
+            # Security: Session Regeneration to prevent fixation
+            session.clear()
+            session.permanent = True
             session['admin_id'] = user.id
             try:
                 log_action('LOGIN', 'User', user.id, f"Admin {username} logged in")
@@ -184,6 +187,14 @@ def products():
         new_product = Product(name=name, price=int(price), description=description, image_url=image_url)
         db.session.add(new_product)
         db.session.commit()
+        
+        # Emit real-time notification to all vendors
+        try:
+            from . import socketio
+            socketio.emit('catalog_updated', {'type': 'add', 'product': new_product.to_dict()})
+        except Exception as e:
+            print(f"Socket emit error: {e}")
+            
         log_action('CREATE_PRODUCT', 'Product', new_product.id, f"Added product: {name}")
         flash('Product added successfully!')
         return redirect(url_for('web_admin.products'))
@@ -286,7 +297,12 @@ def bulk_stock_action():
         for p in products:
             qty = request.form.get(f'stock_{p.id}', type=int)
             if qty is not None:
-                stock = DailyStock.query.filter_by(vendor_id=int(v_id), product_id=p.id, date=today).first()
+                # Security: Pessimistic Locking
+                stock = DailyStock.query.filter_by(
+                    vendor_id=int(v_id), 
+                    product_id=p.id, 
+                    date=today
+                ).with_for_update().first()
                 if stock:
                     stock.quantity = qty
                 else:
@@ -317,7 +333,12 @@ def update_vendor_stock(vendor_id):
         for p in products:
             qty = request.form.get(f'stock_{p.id}', type=int)
             if qty is not None:
-                stock = DailyStock.query.filter_by(vendor_id=vendor_id, product_id=p.id, date=today).first()
+                # Security: Pessimistic Locking
+                stock = DailyStock.query.filter_by(
+                    vendor_id=vendor_id, 
+                    product_id=p.id, 
+                    date=today
+                ).with_for_update().first()
                 if stock:
                     stock.quantity = qty
                 else:

@@ -58,6 +58,7 @@ class Product(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(50), nullable=True, default='Haus!') # Added for branding/grouping
     price = db.Column(db.Integer, nullable=False) # In IDR
     image_url = db.Column(db.String(255), nullable=True)
     
@@ -65,13 +66,14 @@ class Product(db.Model, SerializerMixin):
     stocks = db.relationship('DailyStock', backref='product', cascade='all, delete-orphan', lazy=True)
     order_items = db.relationship('OrderItem', backref='product', cascade='all, delete-orphan', lazy=True)
 
-    serialize_only = ('id', 'name', 'description', 'price', 'image_url')
+    serialize_only = ('id', 'name', 'description', 'category', 'price', 'image_url')
 
     def to_dict(self):
         return {
             "id": self.id,
             "name": self.name,
             "description": self.description,
+            "category": self.category,
             "price": self.price,
             "image_url": self.image_url
         }

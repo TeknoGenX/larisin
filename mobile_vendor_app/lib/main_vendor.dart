@@ -89,7 +89,7 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('PESANAN BARU MASUK! Dari ${data['customer_name']}'),
-                backgroundColor: AppTheme.accentGreen,
+                backgroundColor: AppTheme.brandAccent,
                 behavior: SnackBarBehavior.floating,
                 duration: const Duration(seconds: 5),
               ),
@@ -135,6 +135,21 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
           if (mounted) {
             Provider.of<ChatProvider>(context, listen: false)
                 .handleMessagesRead(data['reader_id']);
+          }
+        });
+
+        // Listen for catalog updates (new products added by admin)
+        socketService.on('catalog_updated', (data) {
+          if (mounted) {
+            Provider.of<ProductProvider>(context, listen: false)
+                .fetchProducts(auth.token!);
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Produk baru tersedia: ${data['product']['name']}'),
+                backgroundColor: AppTheme.brandPrimary,
+              ),
+            );
           }
         });
       }
@@ -185,8 +200,8 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
               children: [
                 CircleAvatar(
                   radius: 30,
-                  backgroundColor: AppTheme.primaryIndigo.withValues(alpha: 0.1),
-                  child: Text(user?['username'][0].toUpperCase() ?? 'V', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryIndigo)),
+                  backgroundColor: AppTheme.brandPrimary.withValues(alpha: 0.1),
+                  child: Text(user?['username'][0].toUpperCase() ?? 'V', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.brandPrimary)),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -194,7 +209,7 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Halo, ${user?['username']}!', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-                      Text(user?['is_verified'] == true ? 'Verified Merchant' : 'Awaiting Verification', style: TextStyle(color: user?['is_verified'] == true ? AppTheme.accentGreen : Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text(user?['is_verified'] == true ? 'Verified Merchant' : 'Awaiting Verification', style: TextStyle(color: user?['is_verified'] == true ? AppTheme.brandAccent : Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -221,9 +236,9 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
                Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [AppTheme.primaryIndigo, Color(0xFF6366F1)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  gradient: const LinearGradient(colors: [AppTheme.brandPrimary, Color(0xFF6366F1)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(24),
-                  boxShadow: [BoxShadow(color: AppTheme.primaryIndigo.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 6))],
+                  boxShadow: [BoxShadow(color: AppTheme.brandPrimary.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 6))],
                 ),
                 child: Column(
                   children: [
@@ -235,7 +250,7 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
                       onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VendorOrderScreen())),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: AppTheme.primaryIndigo,
+                        foregroundColor: AppTheme.brandPrimary,
                         minimumSize: const Size(double.infinity, 50),
                       ),
                       child: const Text('BUKA DAFTAR PESANAN'),
@@ -293,7 +308,7 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
                     children: [
-                      const Icon(Icons.gps_fixed, color: AppTheme.accentGreen),
+                      const Icon(Icons.gps_fixed, color: AppTheme.brandAccent),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Text(
@@ -325,7 +340,7 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
         ),
         child: Column(
           children: [
-            Icon(icon, color: AppTheme.primaryIndigo, size: 32),
+            Icon(icon, color: AppTheme.brandPrimary, size: 32),
             const SizedBox(height: 12),
             Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           ],
@@ -398,7 +413,7 @@ class VendorOrderScreen extends StatelessWidget {
     } else if (order['status'] == 'processing') {
       return ElevatedButton(
         onPressed: () => provider.updateStatus(token, order['id'], 'on_delivery'),
-        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentGreen),
+        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.brandAccent),
         child: const Text('MULAI KIRIM'),
       );
     } else if (order['status'] == 'on_delivery') {
@@ -414,9 +429,9 @@ class VendorOrderScreen extends StatelessWidget {
       return const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.check_circle, color: AppTheme.accentGreen),
+          Icon(Icons.check_circle, color: AppTheme.brandAccent),
           SizedBox(width: 8),
-          Text('Pesanan Selesai', style: TextStyle(color: AppTheme.accentGreen, fontWeight: FontWeight.bold)),
+          Text('Pesanan Selesai', style: TextStyle(color: AppTheme.brandAccent, fontWeight: FontWeight.bold)),
         ],
       );
     }
@@ -432,6 +447,7 @@ class StockUpdateScreen extends StatefulWidget {
 
 class _StockUpdateScreenState extends State<StockUpdateScreen> {
   final Map<int, int> _stockInputs = {};
+  final Map<int, TextEditingController> _controllers = {};
   bool _isSubmitting = false;
 
   @override
@@ -439,8 +455,28 @@ class _StockUpdateScreenState extends State<StockUpdateScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = Provider.of<AuthProvider>(context, listen: false);
-      Provider.of<ProductProvider>(context, listen: false).fetchProducts(auth.token!);
+      Provider.of<ProductProvider>(context, listen: false).fetchProducts(auth.token!).then((_) {
+        // Initialize inputs with current stock
+        if (mounted) {
+          final products = Provider.of<ProductProvider>(context, listen: false).products;
+          setState(() {
+            for (var p in products) {
+              int qty = p['current_stock'] ?? 0;
+              _stockInputs[p['id']] = qty;
+              _controllers[p['id']] = TextEditingController(text: qty.toString());
+            }
+          });
+        }
+      });
     });
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   void _submitStock() async {
@@ -483,6 +519,9 @@ class _StockUpdateScreenState extends State<StockUpdateScreen> {
                     itemCount: productProvider.products.length,
                     itemBuilder: (context, index) {
                       final product = productProvider.products[index];
+                      final pid = product['id'] as int;
+                      final controller = _controllers[pid];
+                      
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
@@ -491,6 +530,7 @@ class _StockUpdateScreenState extends State<StockUpdateScreen> {
                           trailing: SizedBox(
                             width: 80,
                             child: TextField(
+                              controller: controller,
                               keyboardType: TextInputType.number,
                               textAlign: TextAlign.center,
                               decoration: InputDecoration(
@@ -499,7 +539,7 @@ class _StockUpdateScreenState extends State<StockUpdateScreen> {
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               onChanged: (val) {
-                                _stockInputs[product['id']] = int.tryParse(val) ?? 0;
+                                _stockInputs[pid] = int.tryParse(val) ?? 0;
                               },
                             ),
                           ),

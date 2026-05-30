@@ -141,7 +141,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     final p = productProvider.products[index];
                     return ListTile(
-                      leading: const Icon(Icons.local_drink, color: AppTheme.primaryIndigo),
+                      leading: const Icon(Icons.local_drink, color: AppTheme.brandPrimary),
                       title: Text(p['name']),
                       subtitle: Text('Rp ${p['price']}'),
                       onTap: () {
@@ -244,7 +244,7 @@ class _ChatScreenState extends State<ChatScreen> {
               isOtherTyping ? 'Sedang mengetik...' : 'Online',
               style: TextStyle(
                 fontSize: 12,
-                color: isOtherTyping ? Colors.blue : AppTheme.accentGreen,
+                color: isOtherTyping ? Colors.blue : AppTheme.brandAccent,
                 fontStyle: isOtherTyping ? FontStyle.italic : FontStyle.normal,
               ),
             ),
@@ -309,7 +309,7 @@ class _ChatScreenState extends State<ChatScreen> {
         padding: (msg['message_type'] == 'image' || msg['message_type'] == 'product') ? const EdgeInsets.all(4) : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
-          color: isMe ? AppTheme.primaryIndigo : Colors.grey[200],
+          color: isMe ? AppTheme.brandPrimary : Colors.grey[200],
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -430,12 +430,12 @@ class _ChatScreenState extends State<ChatScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.image_outlined, color: AppTheme.primaryIndigo),
+                            icon: const Icon(Icons.image_outlined, color: AppTheme.brandPrimary),
                             onPressed: () => _showImageSourceActionSheet(context),
                           ),
                           if (isVendor)
                             IconButton(
-                              icon: const Icon(Icons.shopping_bag_outlined, color: AppTheme.primaryIndigo),
+                              icon: const Icon(Icons.shopping_bag_outlined, color: AppTheme.brandPrimary),
                               onPressed: _showProductPicker,
                             ),
                         ],
@@ -457,7 +457,7 @@ class _ChatScreenState extends State<ChatScreen> {
               onLongPress: _startRecording,
               onLongPressUp: _stopRecording,
               child: CircleAvatar(
-                backgroundColor: _isRecording ? Colors.red : AppTheme.primaryIndigo,
+                backgroundColor: _isRecording ? Colors.red : AppTheme.brandPrimary,
                 child: Icon(
                   _messageController.text.isNotEmpty ? Icons.send : Icons.mic, 
                   color: Colors.white

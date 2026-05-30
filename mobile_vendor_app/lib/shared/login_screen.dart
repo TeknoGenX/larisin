@@ -53,8 +53,8 @@ class _LoginScreenState extends State<LoginScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.primaryIndigo,
-              AppTheme.primaryIndigo.withValues(alpha: 0.8),
+              AppTheme.brandPrimary,
+              AppTheme.brandPrimary.withValues(alpha: 0.8),
             ],
           ),
         ),

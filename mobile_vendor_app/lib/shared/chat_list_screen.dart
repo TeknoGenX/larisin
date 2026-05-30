@@ -48,7 +48,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: AppTheme.primaryIndigo.withValues(alpha: 0.1),
+                    backgroundColor: AppTheme.brandPrimary.withValues(alpha: 0.1),
                     child: Text(conv['other_username'][0].toUpperCase()),
                   ),
                   title: Text(conv['other_username'], style: TextStyle(fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal)),

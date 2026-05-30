@@ -47,8 +47,8 @@ class ProductCardBubble extends StatelessWidget {
                         )
                       : Container(
                           height: 120, width: double.infinity,
-                          color: AppTheme.primaryIndigo.withValues(alpha: 0.1),
-                          child: const Icon(Icons.local_drink, color: AppTheme.primaryIndigo, size: 48),
+                          color: AppTheme.brandPrimary.withValues(alpha: 0.1),
+                          child: const Icon(Icons.local_drink, color: AppTheme.brandPrimary, size: 48),
                         ),
                 ),
               ),
@@ -98,7 +98,7 @@ class ProductCardBubble extends StatelessWidget {
                     Text(
                       'Rp ${product['price']}',
                       style: TextStyle(
-                        color: isOutOfStock ? Colors.grey : AppTheme.primaryIndigo, 
+                        color: isOutOfStock ? Colors.grey : AppTheme.brandPrimary, 
                         fontWeight: FontWeight.w900, 
                         fontSize: 14
                       ),
@@ -117,7 +117,7 @@ class ProductCardBubble extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: isOutOfStock ? null : onBuyPressed,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isOutOfStock ? Colors.grey[300] : AppTheme.accentGreen,
+                        backgroundColor: isOutOfStock ? Colors.grey[300] : AppTheme.brandAccent,
                         foregroundColor: isOutOfStock ? Colors.grey : Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

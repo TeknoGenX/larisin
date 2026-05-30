@@ -185,7 +185,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
           IconButton(
             icon: const CircleAvatar(
-              backgroundColor: AppTheme.primaryIndigo,
+              backgroundColor: AppTheme.brandPrimary,
               child: Icon(Icons.history, color: Colors.white, size: 20),
             ),
             onPressed: () => Navigator.of(context).push(
@@ -231,13 +231,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         children: [
                           Container(
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryIndigo.withValues(alpha: 0.2),
+                              color: AppTheme.brandPrimary.withValues(alpha: 0.2),
                               shape: BoxShape.circle,
                             ),
                           ),
                           const Icon(
                             Icons.location_on,
-                            color: AppTheme.primaryIndigo,
+                            color: AppTheme.brandPrimary,
                             size: 40,
                           ),
                           Positioned(
@@ -277,7 +277,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     _mapController.move(const LatLng(-6.200000, 106.816666), 14.0);
                   },
                   backgroundColor: Colors.white,
-                  child: const Icon(Icons.my_location, color: AppTheme.primaryIndigo),
+                  child: const Icon(Icons.my_location, color: AppTheme.brandPrimary),
                 ),
                 const SizedBox(height: 16),
                 Container(
@@ -289,7 +289,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline, color: AppTheme.primaryIndigo),
+                      const Icon(Icons.info_outline, color: AppTheme.brandPrimary),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -358,8 +358,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 children: [
                   CircleAvatar(
                     radius: 30,
-                    backgroundColor: AppTheme.primaryIndigo.withValues(alpha: 0.1),
-                    child: Text(vendor['username'][0].toUpperCase(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryIndigo)),
+                    backgroundColor: AppTheme.brandPrimary.withValues(alpha: 0.1),
+                    child: Text(vendor['username'][0].toUpperCase(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.brandPrimary)),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -376,7 +376,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                               ),
                           ],
                         ),
-                        const Text('Pedagang Sedang Berkeliling', style: TextStyle(color: AppTheme.accentGreen, fontWeight: FontWeight.w500)),
+                        const Text('Pedagang Sedang Berkeliling', style: TextStyle(color: AppTheme.brandAccent, fontWeight: FontWeight.w500)),
                       ],
                     ),
                   ),
@@ -592,7 +592,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                                     label: const Text('BERI ULASAN'),
                                     style: OutlinedButton.styleFrom(
                                       minimumSize: const Size(double.infinity, 44),
-                                      side: const BorderSide(color: AppTheme.primaryIndigo),
+                                      side: const BorderSide(color: AppTheme.brandPrimary),
                                     ),
                                   ),
                             ),
@@ -608,7 +608,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   Widget _buildStatusBadge(String status) {
     Color color = Colors.grey;
     switch(status) {
-      case 'delivered': color = AppTheme.accentGreen; break;
+      case 'delivered': color = AppTheme.brandAccent; break;
       case 'on_delivery': color = Colors.orange; break;
       case 'paid': color = Colors.blue; break;
       case 'processing': color = Colors.purple; break;
@@ -664,8 +664,8 @@ class _VendorMenuScreenState extends State<VendorMenuScreen> {
         appBar: AppBar(
           title: Text(widget.vendor['username']),
           bottom: const TabBar(
-            indicatorColor: AppTheme.primaryIndigo,
-            labelColor: AppTheme.primaryIndigo,
+            indicatorColor: AppTheme.brandPrimary,
+            labelColor: AppTheme.brandPrimary,
             unselectedLabelColor: Colors.grey,
             tabs: [
               Tab(text: 'MENU'),
@@ -691,13 +691,13 @@ class _VendorMenuScreenState extends State<VendorMenuScreen> {
                               child: ListTile(
                                 leading: Container(
                                   width: 50, height: 50,
-                                  decoration: BoxDecoration(color: AppTheme.primaryIndigo.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                                  child: const Icon(Icons.local_drink, color: AppTheme.primaryIndigo),
+                                  decoration: BoxDecoration(color: AppTheme.brandPrimary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                                  child: const Icon(Icons.local_drink, color: AppTheme.brandPrimary),
                                 ),
                                 title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
                                 subtitle: Text('Rp ${item['price']} • Sisa: ${item['quantity']}'),
                                 trailing: IconButton(
-                                  icon: const Icon(Icons.add_circle, color: AppTheme.primaryIndigo, size: 32),
+                                  icon: const Icon(Icons.add_circle, color: AppTheme.brandPrimary, size: 32),
                                   onPressed: item['quantity'] > 0
                                       ? () {
                                           cart.addItem(item['product_id'],
@@ -768,7 +768,7 @@ class _VendorMenuScreenState extends State<VendorMenuScreen> {
                 },
                 label: Text('Check Out (${cart.itemCount})', style: const TextStyle(fontWeight: FontWeight.bold)),
                 icon: const Icon(Icons.shopping_cart_checkout),
-                backgroundColor: AppTheme.accentGreen,
+                backgroundColor: AppTheme.brandAccent,
               )
             : null,
       ),
@@ -851,7 +851,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Total Pembayaran', style: TextStyle(fontSize: 16, color: Colors.grey)),
-                      Text('Rp ${cart.totalAmount}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppTheme.primaryIndigo)),
+                      Text('Rp ${cart.totalAmount}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppTheme.brandPrimary)),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -859,7 +859,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ? const CircularProgressIndicator()
                       : ElevatedButton(
                           onPressed: cart.itemCount > 0 ? _processOrder : null,
-                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentGreen),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.brandAccent),
                           child: const Text('BAYAR SEKARANG'),
                         ),
                 ],

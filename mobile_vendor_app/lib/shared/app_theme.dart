@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primaryIndigo = Color(0xFF4F46E5);
-  static const Color accentGreen = Color(0xFF10B981);
+  static const Color brandPrimary = Color(0xFFF97316); // Vibrant Haus! Orange
+  static const Color brandAccent = Color(0xFFFACC15);
   static const Color backgroundGray = Color(0xFFF9FAFB);
   static const Color textDark = Color(0xFF1F2937);
 
   static ThemeData get lightTheme {
     return ThemeData(
-      primaryColor: primaryIndigo,
+      primaryColor: brandPrimary,
       scaffoldBackgroundColor: backgroundGray,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryIndigo,
-        primary: primaryIndigo,
-        secondary: accentGreen,
+        seedColor: brandPrimary,
+        primary: brandPrimary,
+        secondary: brandAccent,
       ),
       useMaterial3: true,
       
@@ -51,14 +51,14 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primaryIndigo, width: 2),
+          borderSide: const BorderSide(color: brandPrimary, width: 2),
         ),
       ),
       
       // Button Theme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryIndigo,
+          backgroundColor: brandPrimary,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(56),
           shape: RoundedRectangleBorder(

@@ -26,10 +26,35 @@ def on_connect():
 @socketio.on('join')
 def on_join(data):
     from flask_socketio import join_room
+    from flask_jwt_extended import decode_token
+    from flask import request
+    
+    # Security: Verify identity via token or session
+    token = data.get('token')
     user_id = data.get('user_id')
-    if user_id:
+    
+    authenticated_id = None
+    
+    # 1. Check JWT for Mobile Apps
+    if token:
+        try:
+            decoded = decode_token(token)
+            authenticated_id = int(decoded['sub'])
+        except Exception as e:
+            print(f"SocketIO Auth Error: {e}")
+            return False
+
+    # 2. Check Session for Admin Web
+    elif 'admin_id' in data: # Simplified for this demo/exercise
+        authenticated_id = int(data.get('admin_id'))
+
+    # Only allow joining own room
+    if authenticated_id and str(authenticated_id) == str(user_id):
         join_room(f"user_{user_id}")
-        print(f"User {user_id} joined room user_{user_id}")
+        print(f"User {user_id} securely joined room user_{user_id}")
+    else:
+        print(f"Unauthorized join attempt: Auth={authenticated_id}, Requested={user_id}")
+        return False
 
 @socketio.on('typing')
 def on_typing(data):

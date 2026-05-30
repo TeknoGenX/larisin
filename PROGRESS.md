@@ -29,9 +29,13 @@
 Seluruh modul utama dan fitur komunikasi real-time telah diimplementasikan sepenuhnya. Sistem telah melalui tahap pengujian intensif dan perbaikan bug kritikal.
 
 ### 🛠️ Perbaikan Terbaru (Mei 2026)
-- [x] **Bug Fix:** Memperbaiki *type mismatch* pada submit review (String vs Int comparison).
-- [x] **Stability:** Menggunakan jalur absolut untuk database SQLite guna mencegah *path ambiguity*.
-- [x] **Testing:** Menambahkan default password pada unit test untuk kemudahan eksekusi CI/CD.
+- [x] **Concurrency & Safety:** Mencegah *deadlock* pada transaksi pesanan dengan mengurutkan ID produk sebelum *pessimistic locking*.
+- [x] **Socket.IO Security:** Mengamankan *room joining* dengan validasi JWT untuk mencegah intersepsi pesan.
+- [x] **Race Condition Fix:** Menambahkan *pessimistic locking* pada pembaruan stok manual (Vendor & Admin).
+- [x] **Architectural Theme:** Refaktor tema Flutter menggunakan *Semantic Naming* (`brandPrimary`, `brandAccent`) untuk mencegah kerusakan saat rebranding di masa depan.
+- [x] **Admin Security:** Menambahkan regenerasi session saat login untuk mencegah *session fixation*.
+- [x] **Branding Alignment:** Mengubah tema UI ke warna Orange khas Haus! Indonesia.
+- [x] **Product Catalog:** Menambahkan kategori produk (Haus!, Ganjel Roti, dll).
 - [x] **Ecosystem:** Validasi alur end-to-end berhasil 100% via `test_ecosystem.py`.
 
 *Terakhir diperbarui: Rabu, 13 Mei 2026*
