@@ -8,10 +8,25 @@ db = SQLAlchemy()
 # Foreign key constants
 USERS_ID_FK = 'users.id'
 
+# --- Multi-Tenancy Addition ---
+class Company(db.Model, SerializerMixin):
+    __tablename__ = 'companies'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    logo_url = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    users = db.relationship('User', backref='company', lazy=True)
+    products = db.relationship('Product', backref='company', lazy=True)
+
+    serialize_only = ('id', 'name', 'logo_url')
+
 class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=True) # NULL for Platform Admin
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(20), nullable=False) # admin, vendor, customer
@@ -35,6 +50,7 @@ class User(db.Model, SerializerMixin):
     def to_dict(self):
         return {
             "id": self.id,
+            "company_id": self.company_id,
             "username": self.username,
             "role": self.role,
             "is_verified": self.is_verified,
@@ -72,6 +88,7 @@ class Product(db.Model, SerializerMixin):
     def to_dict(self):
         return {
             "id": self.id,
+            "company_id": self.company_id,
             "name": self.name,
             "description": self.description,
             "category": self.category,
@@ -215,23 +232,6 @@ class ChatMessage(db.Model, SerializerMixin):
                     vendor_id=vendor.id, 
                     product_id=self.product_id, 
                     date=datetime.now(timezone.utc).date()
-                ).first()
-                product_data['stock_quantity'] = stock.quantity if stock else 0
-
-        return {
-            "id": self.id,
-            "sender_id": self.sender_id,
-            "sender_name": self.sender.username,
-            "receiver_id": self.receiver_id,
-            "message": self.message,
-            "message_type": self.message_type,
-            "media_url": self.media_url,
-            "product_id": self.product_id,
-            "product": product_data,
-            "is_read": self.is_read,
-            "created_at": self.created_at.isoformat()
-        }
-).date()
                 ).first()
                 product_data['stock_quantity'] = stock.quantity if stock else 0
 

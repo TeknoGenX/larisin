@@ -145,7 +145,13 @@ def verify_vendor(user_id):
 def list_products():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
-    products = Product.query.all()
+    
+    category = request.args.get('category')
+    query = Product.query
+    if category and category != 'Semua':
+        query = query.filter_by(category=category)
+    
+    products = query.all()
     
     today = datetime.now(timezone.utc).date()
     result = []
@@ -172,6 +178,10 @@ def update_stock():
         
     data = request.get_json() # List of {product_id, quantity}
     for item in data:
+        qty = item.get('quantity', 0)
+        if qty < 0:
+            return jsonify({"msg": "Stok tidak boleh negatif"}), 400
+            
         product = Product.query.get(item['product_id'])
         if not product:
             return jsonify({"msg": f"Product {item['product_id']} not found"}), 404
@@ -364,31 +374,39 @@ def create_order():
 
     try:
         for item in sorted_items:
+            qty = item.get('quantity', 0)
+            if qty <= 0:
+                return jsonify({"msg": "Kuantitas produk harus lebih dari 0"}), 400
+
             product = Product.query.get(item['product_id'])
             if not product:
-                return jsonify({"msg": f"Product {item['product_id']} not found"}), 404
+                return jsonify({"msg": f"Produk ID {item['product_id']} tidak ditemukan"}), 404
 
             # Pessimistic Locking on the stock row
             stock = DailyStock.query.filter_by(
                 vendor_id=vendor_id,
                 product_id=item['product_id'],
                 date=datetime.now(timezone.utc).date()
-            ).with_for_update().first()            
-            if not stock or stock.quantity < item['quantity']:
+            ).with_for_update().first()
+            
+            if not stock:
+                return jsonify({"msg": f"Penjual ini tidak memiliki stok untuk {product.name}"}), 400
+                
+            if stock.quantity < qty:
                 db.session.rollback()
-                return jsonify({"msg": f"Insufficient stock for {product.name}"}), 400
+                return jsonify({"msg": f"Stok tidak cukup untuk {product.name}"}), 400
             
             # Deduct stock
-            stock.quantity -= item['quantity']
+            stock.quantity -= qty
             
             # Calculate price
-            item_total = product.price * item['quantity']
+            item_total = product.price * qty
             total_price += item_total
             
             # Prepare OrderItem
             order_items_to_add.append(OrderItem(
                 product_id=item['product_id'],
-                quantity=item['quantity'],
+                quantity=qty,
                 price_at_order=product.price
             ))
             
@@ -432,7 +450,9 @@ def create_order():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({"msg": "Order failed", "error": str(e)}), 500
+        import logging
+        logging.error(f"ORDER_FAIL: {str(e)}")
+        return jsonify({"msg": "Terjadi kesalahan saat memproses pesanan"}), 500
 
 @order_bp.route('/history', methods=['GET'])
 @jwt_required()
@@ -573,25 +593,28 @@ def mark_as_read(other_id):
 @chat_bp.route('/conversations', methods=['GET'])
 @jwt_required()
 def get_conversations():
-    user_id = get_jwt_identity()
-    # This is a bit complex in SQL, so we'll do it in a simplified way for the prototype
-    # Get all unique users this user has chatted with
-    sent_to = db.session.query(ChatMessage.receiver_id).filter_by(sender_id=user_id).distinct()
-    received_from = db.session.query(ChatMessage.sender_id).filter_by(receiver_id=user_id).distinct()
+    user_id = int(get_jwt_identity())
     
-    other_user_ids = set([r[0] for r in sent_to] + [r[0] for r in received_from])
+    # Efficient query to get last messages and unread counts in fewer steps
+    # We find all unique pairs this user has communicated with
+    subq = db.session.query(
+        func.max(ChatMessage.id).label('max_id')
+    ).filter(
+        or_(ChatMessage.sender_id == user_id, ChatMessage.receiver_id == user_id)
+    ).group_by(
+        case(
+            (ChatMessage.sender_id == user_id, ChatMessage.receiver_id),
+            else_=ChatMessage.sender_id
+        )
+    ).subquery()
+
+    last_messages = ChatMessage.query.filter(ChatMessage.id.in_(subq)).order_by(ChatMessage.created_at.desc()).all()
     
     results = []
-    for other_id in other_user_ids:
+    for msg in last_messages:
+        other_id = msg.receiver_id if msg.sender_id == user_id else msg.sender_id
         other_user = User.query.get(other_id)
         if not other_user: continue
-        
-        last_msg = ChatMessage.query.filter(
-            or_(
-                (ChatMessage.sender_id == user_id) & (ChatMessage.receiver_id == other_id),
-                (ChatMessage.sender_id == other_id) & (ChatMessage.receiver_id == user_id)
-            )
-        ).order_by(ChatMessage.created_at.desc()).first()
         
         unread_count = ChatMessage.query.filter_by(
             sender_id=other_id,
@@ -602,13 +625,11 @@ def get_conversations():
         results.append({
             "other_user_id": other_id,
             "other_username": other_user.username,
-            "last_message": last_msg.message if last_msg else "",
-            "last_time": last_msg.created_at.isoformat() if last_msg else None,
+            "last_message": msg.message if msg.message_type == 'text' else f"[{msg.message_type.capitalize()} Message]",
+            "last_time": msg.created_at.isoformat(),
             "unread_count": unread_count
         })
     
-    # Sort by last message time
-    results.sort(key=lambda x: x['last_time'] if x['last_time'] else "", reverse=True)
     return jsonify(results), 200
 import uuid
 import os
@@ -762,16 +783,6 @@ def send_product_card():
     send_push_notification(
         receiver_id, 
         f"Rekomendasi Produk dari {sender_name}", 
-        f"Cek {product.name} sekarang!",
-        {"sender_id": str(user_id), "type": "chat", "product_id": str(product_id)}
-    )
-
-    return jsonify(new_msg.to_dict()), 201
-   {"sender_id": str(user_id), "type": "chat", "product_id": str(product_id)}
-    )
-
-    return jsonify(new_msg.to_dict()), 201
-ame}", 
         f"Cek {product.name} sekarang!",
         {"sender_id": str(user_id), "type": "chat", "product_id": str(product_id)}
     )
