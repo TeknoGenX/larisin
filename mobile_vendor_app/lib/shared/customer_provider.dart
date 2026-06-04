@@ -53,10 +53,13 @@ class CustomerProvider with ChangeNotifier {
     }
   }
 
-  Future<List<dynamic>> fetchVendorStock(String token, int vendorId) async {
+  Future<List<dynamic>> fetchVendorStock(String token, int vendorId, {String? category}) async {
     try {
+      final queryParams = category != null && category != 'Semua' ? {'category': category} : <String, String>{};
+      final uri = Uri.parse('$_baseUrl/customer/vendor-stock/$vendorId').replace(queryParameters: queryParams);
+      
       final response = await http.get(
-        Uri.parse('$_baseUrl/customer/vendor-stock/$vendorId'),
+        uri,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

@@ -39,6 +39,52 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> updateStoreImage(String filePath) async {
+    if (_token == null) return false;
+    
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse('$_baseUrl/vendor/upload-store-image'));
+      request.headers['Authorization'] = 'Bearer $_token';
+      request.files.add(await http.MultipartFile.fromPath('file', filePath));
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        _user!['store_image_url'] = data['store_image_url'];
+        
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user', json.encode(_user));
+        
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error uploading store image: $e');
+      return false;
+    }
+  }
+
+  Future<bool> syncFCMToken(String fcmToken) async {
+    if (_token == null) return false;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/auth/fcm-token'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: json.encode({'fcm_token': fcmToken}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error syncing FCM token: $e');
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     _token = null;
     _user = null;

@@ -265,7 +265,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         return _buildTypingIndicator();
                       }
                       final msg = messages[index];
-                      final isMe = msg['sender_id'] == auth.user!['id'];
+                      final isMe = msg['sender_id'] == (auth.user?['id'] ?? 0);
                       return _buildMessageBubble(msg, isMe);
                     },
                   ),
@@ -496,5 +496,8 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+  }
+}
+;
   }
 }

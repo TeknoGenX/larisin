@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import 'shared/auth_provider.dart';
 import 'shared/product_provider.dart';
 import 'shared/location_provider.dart';
@@ -33,7 +34,7 @@ class VendorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Haus2 Vendor',
+      title: 'Larisin Vendor',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: Consumer<AuthProvider>(
@@ -56,10 +57,57 @@ class VendorHomeScreen extends StatefulWidget {
 }
 
 class _VendorHomeScreenState extends State<VendorHomeScreen> {
+  final ImagePicker _picker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
     _initSocketAndTracking();
+  }
+
+  void _showImageSourceActionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Galeri'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Kamera'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadImage(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _pickAndUploadImage(ImageSource source) async {
+    final XFile? image = await _picker.pickImage(source: source, imageQuality: 50);
+    if (image != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mengunggah foto toko...')));
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final success = await auth.updateStoreImage(image.path);
+      
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Foto toko berhasil diperbarui!')));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal mengunggah foto toko.')));
+        }
+      }
+    }
   }
 
   void _initSocketAndTracking() {
@@ -78,7 +126,10 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
             
         // Connect Socket
         final socketService = Provider.of<SocketService>(context, listen: false);
-        socketService.connect(auth.user!['id']);
+        socketService.connect(auth.user?['id'] ?? 0);
+        
+        // Push Notification Setup (Simulated Activation)
+        auth.syncFCMToken("SIMULATED_FCM_TOKEN_${auth.user?['id'] ?? 0}");
         
         // Listen for new orders
         socketService.on('new_order', (data) {
@@ -198,10 +249,33 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppTheme.brandPrimary.withValues(alpha: 0.1),
-                  child: Text(user?['username'][0].toUpperCase() ?? 'V', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.brandPrimary)),
+                GestureDetector(
+                  onTap: () => _showImageSourceActionSheet(context),
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 35,
+                        backgroundColor: AppTheme.brandPrimary.withValues(alpha: 0.1),
+                        backgroundImage: user?['store_image_url'] != null 
+                          ? NetworkImage(user!['store_image_url'].startsWith('http') 
+                              ? user!['store_image_url'] 
+                              : 'http://127.0.0.1:5003${user!['store_image_url']}') 
+                          : null,
+                        child: user?['store_image_url'] == null 
+                          ? Text(user?['username'][0].toUpperCase() ?? 'V', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.brandPrimary))
+                          : null,
+                      ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(color: AppTheme.brandPrimary, shape: BoxShape.circle),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -506,27 +580,60 @@ class _StockUpdateScreenState extends State<StockUpdateScreen> {
   @override
   Widget build(BuildContext context) {
     final productProvider = Provider.of<ProductProvider>(context);
+    final auth = Provider.of<AuthProvider>(context, listen: false);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Update Stok Harian', style: TextStyle(fontWeight: FontWeight.bold))),
-      body: productProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
+      app_bar: AppBar(title: const Text('Update Stok Harian', style: TextStyle(fontWeight: FontWeight.bold))),
+      body: Column(
+        children: [
+          // Category Filter Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: productProvider.categories.map((cat) {
+                final isSelected = productProvider.selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    onSelected: (_) => productProvider.setCategory(cat, auth.token!),
+                    selectedColor: AppTheme.brandPrimary.withValues(alpha: 0.2),
+                    checkmarkColor: AppTheme.brandPrimary,
+                    labelStyle: TextStyle(
+                      color: isSelected ? AppTheme.brandPrimary : Colors.black54,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          Expanded(
+            child: productProvider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: productProvider.products.length,
                     itemBuilder: (context, index) {
                       final product = productProvider.products[index];
                       final pid = product['id'] as int;
+                      
+                      // Ensure controller exists for this product (even if filtered)
+                      if (!_controllers.containsKey(pid)) {
+                         int qty = product['current_stock'] ?? 0;
+                         _stockInputs[pid] = qty;
+                         _controllers[pid] = TextEditingController(text: qty.toString());
+                      }
+                      
                       final controller = _controllers[pid];
                       
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           title: Text(product['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('Harga Jual: Rp ${product['price']}'),
+                          subtitle: Text('${product['category'] ?? 'Haus!'} • Rp ${product['price']}'),
                           trailing: SizedBox(
                             width: 80,
                             child: TextField(
@@ -547,18 +654,18 @@ class _StockUpdateScreenState extends State<StockUpdateScreen> {
                       );
                     },
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: _isSubmitting
-                      ? const CircularProgressIndicator()
-                      : ElevatedButton(
-                          onPressed: _submitStock,
-                          child: const Text('SIMPAN STOK'),
-                        ),
-                ),
-              ],
-            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: _isSubmitting
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: _submitStock,
+                    child: const Text('SIMPAN STOK'),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

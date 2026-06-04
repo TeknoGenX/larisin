@@ -1,4 +1,4 @@
-# 📈 Progress Report: Marketplace Mobile Vendor Ecosystem
+# 📈 Progress Report: Larisin: Smart Mobile Vendor Ecosystem
 
 ## ✅ Fitur yang Sudah Dibangun
 

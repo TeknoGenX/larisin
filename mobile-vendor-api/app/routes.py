@@ -4,7 +4,7 @@ from . import limiter
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 from functools import wraps
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import or_
+from sqlalchemy import or_, case, func
 
 auth_bp = Blueprint('auth', __name__)
 admin_bp = Blueprint('admin', __name__)
@@ -25,6 +25,21 @@ def role_required(role):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+@auth_bp.route('/fcm-token', methods=['POST'])
+@jwt_required()
+def update_fcm_token():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    data = request.get_json()
+    token = data.get('fcm_token')
+    
+    if not token:
+        return jsonify({"msg": "Token is required"}), 400
+        
+    user.fcm_token = token
+    db.session.commit()
+    return jsonify({"msg": "FCM token updated successfully"}), 200
 
 @auth_bp.route('/register', methods=['POST'])
 @limiter.limit("5 per minute")
@@ -230,6 +245,42 @@ def update_location():
 
     return jsonify({"msg": "Location updated successfully"}), 200
 
+@vendor_bp.route('/upload-store-image', methods=['POST'])
+@role_required('vendor')
+def upload_store_image():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if 'file' not in request.files:
+        return jsonify({"msg": "No file part"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"msg": "No selected file"}), 400
+    
+    if file:
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in ['.jpg', '.jpeg', '.png']:
+            return jsonify({"msg": "Invalid file type"}), 400
+            
+        from .storage import upload_file
+        image_url = upload_file(file, folder='stores')
+        
+        if not image_url:
+            return jsonify({"msg": "Upload failed"}), 500
+            
+        user.store_image_url = image_url
+        db.session.commit()
+        
+        return jsonify({"msg": "Store image updated", "store_image_url": user.store_image_url}), 200
+    
+    return jsonify({"msg": "Upload failed"}), 400
+
+@vendor_bp.route('/store-image/<filename>', methods=['GET'])
+def get_store_image(filename):
+    from flask import send_from_directory
+    return send_from_directory(os.path.join('static', 'uploads', 'stores'), filename)
+
 @vendor_bp.route('/orders', methods=['GET'])
 @role_required('vendor')
 def vendor_orders():
@@ -271,19 +322,27 @@ def nearby_vendors():
 @customer_bp.route('/vendor-stock/<int:vendor_id>', methods=['GET'])
 @role_required('customer')
 def get_vendor_stock(vendor_id):
-    stocks = DailyStock.query.filter_by(
+    category = request.args.get('category')
+    
+    query = DailyStock.query.filter_by(
         vendor_id=vendor_id, 
         date=datetime.now(timezone.utc).date()
-    ).all()
+    )
+    
+    stocks = query.all()
     
     result = []
     for s in stocks:
         if s.product:
+            if category and category != 'Semua' and s.product.category != category:
+                continue
+                
             result.append({
                 "product_id": s.product_id,
                 "name": s.product.name,
                 "price": s.product.price,
                 "quantity": s.quantity,
+                "category": s.product.category,
                 "image_url": s.product.image_url
             })
     return jsonify(result), 200
@@ -349,13 +408,25 @@ def create_order():
             
         db.session.commit()
 
-        # 3. Emit SocketIO Notification to Vendor
+        # 3. Trigger Notifications
+        from .notifications import send_push_notification
+        customer_name = User.query.get(user_id).username
+        
+        # SocketIO (Instant foreground update)
         from . import socketio
         socketio.emit('new_order', {
             'order_id': new_order.id,
             'total_price': new_order.total_price,
-            'customer_name': User.query.get(user_id).username
+            'customer_name': customer_name
         }, room=f"user_{vendor_id}")
+        
+        # Push Notification (Background/System level)
+        send_push_notification(
+            vendor_id, 
+            "Pesanan Baru!", 
+            f"{customer_name} baru saja memesan Rp {new_order.total_price}",
+            {"order_id": str(new_order.id), "type": "order"}
+        )
 
         return jsonify({"msg": "Order created successfully", "order_id": new_order.id}), 201
         
@@ -443,9 +514,21 @@ def send_message():
     db.session.add(new_msg)
     db.session.commit()
 
-    # Emit to receiver
+    # Trigger Notifications
+    from .notifications import send_push_notification
+    sender_name = User.query.get(user_id).username
+    
+    # SocketIO
     from . import socketio
     socketio.emit('new_chat_message', new_msg.to_dict(), room=f"user_{receiver_id}")
+    
+    # Push Notification
+    send_push_notification(
+        receiver_id, 
+        f"Pesan dari {sender_name}", 
+        new_msg.message,
+        {"sender_id": str(user_id), "type": "chat"}
+    )
 
     return jsonify(new_msg.to_dict()), 201
 
@@ -545,15 +628,12 @@ def upload_voice():
         return jsonify({"msg": "No selected file"}), 400
     
     if file and receiver_id:
-        filename = f"{uuid.uuid4().hex}.m4a"
-        upload_folder = os.path.join('app', 'static', 'uploads', 'voice')
-        if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
+        from .storage import upload_file
+        media_url = upload_file(file, folder='voice')
+        
+        if not media_url:
+            return jsonify({"msg": "Upload failed"}), 500
             
-        file.save(os.path.join(upload_folder, filename))
-        
-        media_url = f"/chat/voice/{filename}"
-        
         new_msg = ChatMessage(
             sender_id=user_id, 
             receiver_id=receiver_id, 
@@ -564,9 +644,21 @@ def upload_voice():
         db.session.add(new_msg)
         db.session.commit()
         
-        # Emit to receiver
+        # Trigger Notifications
+        from .notifications import send_push_notification
+        sender_name = User.query.get(user_id).username
+        
+        # SocketIO
         from . import socketio
         socketio.emit('new_chat_message', new_msg.to_dict(), room=f"user_{receiver_id}")
+        
+        # Push Notification
+        send_push_notification(
+            receiver_id, 
+            f"Pesan Suara dari {sender_name}", 
+            "[Voice Message]",
+            {"sender_id": str(user_id), "type": "chat"}
+        )
         
         return jsonify(new_msg.to_dict()), 201
         
@@ -595,15 +687,12 @@ def upload_image():
         if ext not in ['.jpg', '.jpeg', '.png', '.gif']:
             return jsonify({"msg": "Invalid file type"}), 400
             
-        filename = f"{uuid.uuid4().hex}{ext}"
-        upload_folder = os.path.join('app', 'static', 'uploads', 'images')
-        if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
+        from .storage import upload_file
+        media_url = upload_file(file, folder='images')
+        
+        if not media_url:
+            return jsonify({"msg": "Upload failed"}), 500
             
-        file.save(os.path.join(upload_folder, filename))
-        
-        media_url = f"/chat/image/{filename}"
-        
         new_msg = ChatMessage(
             sender_id=user_id, 
             receiver_id=receiver_id, 
@@ -614,9 +703,21 @@ def upload_image():
         db.session.add(new_msg)
         db.session.commit()
         
-        # Emit to receiver
+        # Trigger Notifications
+        from .notifications import send_push_notification
+        sender_name = User.query.get(user_id).username
+        
+        # SocketIO
         from . import socketio
         socketio.emit('new_chat_message', new_msg.to_dict(), room=f"user_{receiver_id}")
+        
+        # Push Notification
+        send_push_notification(
+            receiver_id, 
+            f"Pesan Foto dari {sender_name}", 
+            "[Photo Message]",
+            {"sender_id": str(user_id), "type": "chat"}
+        )
         
         return jsonify(new_msg.to_dict()), 201
         
@@ -649,8 +750,30 @@ def send_product_card():
     db.session.add(new_msg)
     db.session.commit()
 
-    # Emit to receiver
+    # Trigger Notifications
+    from .notifications import send_push_notification
+    sender_name = User.query.get(user_id).username
+    
+    # SocketIO
     from . import socketio
     socketio.emit('new_chat_message', new_msg.to_dict(), room=f"user_{receiver_id}")
+    
+    # Push Notification
+    send_push_notification(
+        receiver_id, 
+        f"Rekomendasi Produk dari {sender_name}", 
+        f"Cek {product.name} sekarang!",
+        {"sender_id": str(user_id), "type": "chat", "product_id": str(product_id)}
+    )
+
+    return jsonify(new_msg.to_dict()), 201
+   {"sender_id": str(user_id), "type": "chat", "product_id": str(product_id)}
+    )
+
+    return jsonify(new_msg.to_dict()), 201
+ame}", 
+        f"Cek {product.name} sekarang!",
+        {"sender_id": str(user_id), "type": "chat", "product_id": str(product_id)}
+    )
 
     return jsonify(new_msg.to_dict()), 201

@@ -41,7 +41,9 @@ class ProductCardBubble extends StatelessWidget {
                     : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
                   child: product['image_url'] != null
                       ? Image.network(
-                          product['image_url'],
+                          product['image_url'].startsWith('http') 
+                            ? product['image_url'] 
+                            : 'http://127.0.0.1:5003${product['image_url']}',
                           height: 120, width: double.infinity,
                           fit: BoxFit.cover,
                         )

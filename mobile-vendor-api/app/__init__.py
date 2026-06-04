@@ -77,10 +77,14 @@ def create_app():
     # Use absolute path for SQLite to avoid confusion
     basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     default_db = f"sqlite:///{os.path.join(basedir, 'instance', 'haus2.db')}"
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', default_db)
+    db_url = os.environ.get('DATABASE_URL', default_db)
+    if db_url and db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+        
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'dev-jwt-secret-key')
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-flask-session-secret-key')
+    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', '8f7d9c2b4e6a1f3c5b8d0e2a4f6c8e0d2b4a6c8e0d2b4a6c8e0d2b4a6c8e0d2b')
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z1a2b3c4d5e6f')
     
     # Initialize Extensions
     db.init_app(app)
@@ -111,6 +115,6 @@ def create_app():
     
     @app.route('/', methods=['GET'])
     def index():
-        return "<h1>Haus2 Ecosystem API is Running</h1><p>Gunakan <a href='/web-admin/login'>/web-admin/login</a> untuk akses Dashboard.</p>"
+        return "<h1>Larisin Smart Ecosystem API is Running</h1><p>Gunakan <a href='/web-admin/login'>/web-admin/login</a> untuk akses Dashboard.</p>"
     
     return app

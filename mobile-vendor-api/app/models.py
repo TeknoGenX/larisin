@@ -56,6 +56,7 @@ class Product(db.Model, SerializerMixin):
     __tablename__ = 'products'
     
     id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True)
     category = db.Column(db.String(50), nullable=True, default='Haus!') # Added for branding/grouping
@@ -121,6 +122,9 @@ class Order(db.Model, SerializerMixin):
 
 class OrderItem(db.Model, SerializerMixin):
     __tablename__ = 'order_items'
+    __table_args__ = (
+        db.CheckConstraint('price_at_order >= 0', name='non_negative_price'),
+    )
     
     id = db.Column(db.Integer, primary_key=True)
     order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
@@ -211,6 +215,23 @@ class ChatMessage(db.Model, SerializerMixin):
                     vendor_id=vendor.id, 
                     product_id=self.product_id, 
                     date=datetime.now(timezone.utc).date()
+                ).first()
+                product_data['stock_quantity'] = stock.quantity if stock else 0
+
+        return {
+            "id": self.id,
+            "sender_id": self.sender_id,
+            "sender_name": self.sender.username,
+            "receiver_id": self.receiver_id,
+            "message": self.message,
+            "message_type": self.message_type,
+            "media_url": self.media_url,
+            "product_id": self.product_id,
+            "product": product_data,
+            "is_read": self.is_read,
+            "created_at": self.created_at.isoformat()
+        }
+).date()
                 ).first()
                 product_data['stock_quantity'] = stock.quantity if stock else 0
 

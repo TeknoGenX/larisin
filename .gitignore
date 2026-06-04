@@ -12,6 +12,8 @@ __pycache__/
 *.class
 venv/
 ENV/
+.env
+*.log
 mobile-vendor-api/instance/
 mobile-vendor-api/server.log
 mobile-vendor-api/backend.log

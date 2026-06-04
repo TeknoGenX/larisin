@@ -12,15 +12,21 @@ class SocketService with ChangeNotifier {
 
     _socket = IO.io(_baseUrl, <String, dynamic>{
       'transports': ['websocket'],
-      'autoConnect': false,
+      'autoConnect': true,
+      'reconnection': true,
+      'reconnectionAttempts': 10,
+      'reconnectionDelay': 2000,
     });
-
-    _socket!.connect();
 
     _socket!.onConnect((_) {
       print('Socket connected: ${_socket!.id}');
-      _socket!.emit('join', {'user_id': userId});
+      if (userId != 0) {
+        _socket!.emit('join', {'user_id': userId});
+      }
     });
+
+    _socket!.onReconnect((_) => print('Socket reconnected'));
+    _socket!.onReconnectAttempt((attempt) => print('Reconnection attempt: $attempt'));
 
     _socket!.onDisconnect((_) {
       print('Socket disconnected');

@@ -8,3 +8,5 @@ Flask-CORS
 sqlalchemy-serializer
 marshmallow-sqlalchemy
 psycopg2-binary
+cloudinary
+python-dotenv

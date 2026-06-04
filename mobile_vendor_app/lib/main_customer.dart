@@ -76,7 +76,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         
         // Connect Socket
         final socketService = Provider.of<SocketService>(context, listen: false);
-        socketService.connect(auth.user!['id']);
+        socketService.connect(auth.user?['id'] ?? 0);
+        
+        // Push Notification Setup (Simulated Activation)
+        auth.syncFCMToken("SIMULATED_FCM_TOKEN_${auth.user?['id'] ?? 0}");
         
         // Listen for vendor location updates
         socketService.on('vendor_location_update', (data) {
@@ -146,7 +149,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Haus2 Discovery', style: TextStyle(fontWeight: FontWeight.w900)),
+        title: const Text('Larisin Discovery', style: TextStyle(fontWeight: FontWeight.w900)),
         backgroundColor: Colors.white.withValues(alpha: 0.9),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -357,9 +360,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               Row(
                 children: [
                   CircleAvatar(
-                    radius: 30,
+                    radius: 35,
                     backgroundColor: AppTheme.brandPrimary.withValues(alpha: 0.1),
-                    child: Text(vendor['username'][0].toUpperCase(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.brandPrimary)),
+                    backgroundImage: vendor['store_image_url'] != null 
+                      ? NetworkImage(vendor['store_image_url'].startsWith('http') 
+                          ? vendor['store_image_url'] 
+                          : 'http://127.0.0.1:5003${vendor['store_image_url']}') 
+                      : null,
+                    child: vendor['store_image_url'] == null 
+                      ? Text(vendor['username'][0].toUpperCase(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.brandPrimary))
+                      : null,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -632,7 +642,10 @@ class VendorMenuScreen extends StatefulWidget {
 class _VendorMenuScreenState extends State<VendorMenuScreen> {
   List<dynamic> _stocks = [];
   List<dynamic> _reviews = [];
+  String _selectedCategory = 'Semua';
   bool _isLoading = true;
+
+  final List<String> _categories = ['Semua', 'Haus!', 'Ganjel Roti', 'Pedes Cyin', 'Lainnya'];
 
   @override
   void initState() {
@@ -641,10 +654,11 @@ class _VendorMenuScreenState extends State<VendorMenuScreen> {
   }
 
   void _loadData() async {
+    setState(() => _isLoading = true);
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final provider = Provider.of<CustomerProvider>(context, listen: false);
     final stockData =
-        await provider.fetchVendorStock(auth.token!, widget.vendor['id']);
+        await provider.fetchVendorStock(auth.token!, widget.vendor['id'], category: _selectedCategory);
     final reviewData =
         await provider.fetchVendorReviews(auth.token!, widget.vendor['id']);
     setState(() {
@@ -662,7 +676,27 @@ class _VendorMenuScreenState extends State<VendorMenuScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.vendor['username']),
+          toolbarHeight: 120,
+          flexibleSpace: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: AppTheme.brandPrimary.withValues(alpha: 0.1),
+                backgroundImage: widget.vendor['store_image_url'] != null 
+                  ? NetworkImage(widget.vendor['store_image_url'].startsWith('http') 
+                      ? widget.vendor['store_image_url'] 
+                      : 'http://127.0.0.1:5003${widget.vendor['store_image_url']}') 
+                  : null,
+                child: widget.vendor['store_image_url'] == null 
+                  ? Text(widget.vendor['username'][0].toUpperCase(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.brandPrimary))
+                  : null,
+              ),
+              const SizedBox(height: 8),
+              Text(widget.vendor['username'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
           bottom: const TabBar(
             indicatorColor: AppTheme.brandPrimary,
             labelColor: AppTheme.brandPrimary,
@@ -673,81 +707,115 @@ class _VendorMenuScreenState extends State<VendorMenuScreen> {
             ],
           ),
         ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                children: [
-                  // Tab Produk
-                  _stocks.isEmpty
-                      ? const Center(
-                          child: Text('Maaf, stok pedagang sedang kosong.'))
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _stocks.length,
-                          itemBuilder: (context, index) {
-                            final item = _stocks[index];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: ListTile(
-                                leading: Container(
-                                  width: 50, height: 50,
-                                  decoration: BoxDecoration(color: AppTheme.brandPrimary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                                  child: const Icon(Icons.local_drink, color: AppTheme.brandPrimary),
-                                ),
-                                title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: Text('Rp ${item['price']} • Sisa: ${item['quantity']}'),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.add_circle, color: AppTheme.brandPrimary, size: 32),
-                                  onPressed: item['quantity'] > 0
-                                      ? () {
-                                          cart.addItem(item['product_id'],
-                                              item['name'], item['price']);
-                                          setState(() {
-                                            item['quantity'] = item['quantity'] - 1;
-                                          });
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                                content: Text('${item['name']} ditambah ke keranjang'),
-                                                duration: const Duration(seconds: 1),
-                                                behavior: SnackBarBehavior.floating,
-                                            ),
-                                          );
-                                        }
-                                      : null,
-                                ),
-                              ),
-                            );
+        body: TabBarView(
+          children: [
+            // Tab Produk
+            Column(
+              children: [
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: _categories.map((cat) {
+                      final isSelected = _selectedCategory == cat;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(cat),
+                          selected: isSelected,
+                          onSelected: (_) {
+                            setState(() => _selectedCategory = cat);
+                            _loadData();
                           },
+                          selectedColor: AppTheme.brandPrimary.withValues(alpha: 0.2),
+                          checkmarkColor: AppTheme.brandPrimary,
+                          labelStyle: TextStyle(
+                            color: isSelected ? AppTheme.brandPrimary : Colors.black54,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
                         ),
-                  // Tab Ulasan
-                  _reviews.isEmpty
-                      ? const Center(
-                          child: Text('Belum ada ulasan untuk pedagang ini.'))
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _reviews.length,
-                          itemBuilder: (context, index) {
-                            final review = _reviews[index];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: List.generate(
-                                          5,
-                                          (i) => Icon(
-                                                Icons.star,
-                                                size: 16,
-                                                color: i < review['rating']
-                                                    ? Colors.amber
-                                                    : Colors.grey[300],
-                                              )),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(review['comment'] ?? 'Tanpa komentar', style: const TextStyle(fontSize: 14)),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                Expanded(
+                  child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _stocks.isEmpty
+                        ? const Center(
+                            child: Text('Maaf, stok untuk kategori ini sedang kosong.'))
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _stocks.length,
+                            itemBuilder: (context, index) {
+                              final item = _stocks[index];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: ListTile(
+                                  leading: Container(
+                                    width: 50, height: 50,
+                                    decoration: BoxDecoration(color: AppTheme.brandPrimary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                                    child: const Icon(Icons.local_drink, color: AppTheme.brandPrimary),
+                                  ),
+                                  title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  subtitle: Text('${item['category'] ?? "Haus!"} • Rp ${item['price']} • Sisa: ${item['quantity']}'),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.add_circle, color: AppTheme.brandPrimary, size: 32),
+                                    onPressed: item['quantity'] > 0
+                                        ? () {
+                                            cart.addItem(item['product_id'],
+                                                item['name'], item['price']);
+                                            setState(() {
+                                              item['quantity'] = item['quantity'] - 1;
+                                            });
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                  content: Text('${item['name']} ditambah ke keranjang'),
+                                                  duration: const Duration(seconds: 1),
+                                                  behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                        : null,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                ),
+              ],
+            ),
+            // Tab Ulasan
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _reviews.isEmpty
+                    ? const Center(
+                        child: Text('Belum ada ulasan untuk pedagang ini.'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _reviews.length,
+                        itemBuilder: (context, index) {
+                          final review = _reviews[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: List.generate(
+                                        5,
+                                        (i) => Icon(
+                                              Icons.star,
+                                              size: 16,
+                                              color: i < review['rating']
+                                                  ? Colors.amber
+                                                  : Colors.grey[300],
+                                            )),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(review['comment'] ?? 'Tanpa komentar', style: const TextStyle(fontSize: 14)),
                                     const SizedBox(height: 4),
                                     Text('Pembeli Anonim', style: TextStyle(fontSize: 10, color: Colors.grey[400])),
                                   ],

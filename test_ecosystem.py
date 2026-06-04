@@ -37,11 +37,19 @@ def test_flow():
 
     # 3. Vendor Update Stok & Lokasi
     print("\n[3] Vendor Update Stok & Lokasi...")
-    v_login = requests.post(f"{BASE_URL}/auth/login", json={
+    v_login_resp = requests.post(f"{BASE_URL}/auth/login", json={
         "username": vendor_username,
         "password": "password123"
     })
-    v_token = v_login.json()['access_token']
+    v_login_data = v_login_resp.json()
+    v_token = v_login_data['access_token']
+    
+    # Sync FCM Token (NEW)
+    v_fcm = requests.post(f"{BASE_URL}/auth/fcm-token", 
+        headers={"Authorization": f"Bearer {v_token}"},
+        json={"fcm_token": f"TEST_V_TOKEN_{ts}"}
+    )
+    print(f"Vendor FCM Sync: {v_fcm.status_code}")
     
     # Ambil daftar produk untuk mendapatkan ID valid
     products_res = requests.get(f"{BASE_URL}/vendor/products",
@@ -77,7 +85,15 @@ def test_flow():
         "username": customer_username,
         "password": "pembeli123"
     })
-    c_token = c_login.json()['access_token']
+    c_login_data = c_login.json()
+    c_token = c_login_data['access_token']
+
+    # Sync FCM Token (NEW)
+    c_fcm = requests.post(f"{BASE_URL}/auth/fcm-token", 
+        headers={"Authorization": f"Bearer {c_token}"},
+        json={"fcm_token": f"TEST_C_TOKEN_{ts}"}
+    )
+    print(f"Customer FCM Sync: {c_fcm.status_code}")
 
     # 5. Customer Cari Vendor & Checkout
     print("\n[5] Customer Cari Vendor & Checkout...")
@@ -92,6 +108,14 @@ def test_flow():
     )
     order_id = order.json().get('order_id')
     print(f"Checkout Status: {order.status_code}, Order ID: {order_id}")
+
+    # 5.5 Chat Test (NEW)
+    print("\n[5.5] Customer Kirim Chat ke Vendor...")
+    chat = requests.post(f"{BASE_URL}/chat/send",
+        headers={"Authorization": f"Bearer {c_token}"},
+        json={"receiver_id": vendor_id, "message": "Mas, pesanan saya segera diproses ya!"}
+    )
+    print(f"Chat Status: {chat.status_code}")
 
     # 6. Vendor Proses & Kirim Pesanan
     print("\n[6] Vendor Proses & Kirim Pesanan...")

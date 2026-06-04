@@ -1,4 +1,4 @@
-# 🏠 Haus2 Ecosystem: Marketplace Mobile Vendor
+# 🏠 Larisin: Smart Mobile Vendor Ecosystem
 
 Sistem marketplace real-time yang mendukung vendor keliling (mobile vendor), pelanggan, dan administrasi pusat. Dilengkapi dengan pelacakan lokasi real-time, sistem chat multimedia, dan manajemen stok terpusat.
 

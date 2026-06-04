@@ -58,7 +58,7 @@ def login():
             session.permanent = True
             session['admin_id'] = user.id
             try:
-                log_action('LOGIN', 'User', user.id, f"Admin {username} logged in")
+                log_action('LOGIN', 'User', user.id, f"Larisin Admin {username} logged in")
             except Exception as e:
                 print(f"AUDIT LOG ERROR: {e}")
             return redirect(url_for('web_admin.dashboard'))

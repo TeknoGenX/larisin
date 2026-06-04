@@ -2,7 +2,7 @@
 
 Pernahkah Anda bertanya-tanya apa yang diperlukan untuk membangun ekosistem marketplace yang benar-benar sinkron? Bukan sekadar aplikasi CRUD biasa, tapi sistem di mana pesanan muncul seketika, lokasi kurir bergerak di peta secara *live*, dan komunikasi terjalin tanpa hambatan.
 
-Belakangan ini, saya telah menyelesaikan proyek **"Marketplace Mobile Vendor Ecosystem"**, sebuah platform *end-to-end* yang dirancang untuk menangani kompleksitas interaksi antara **Admin**, **Vendor**, dan **Customer**.
+Belakangan ini, saya telah menyelesaikan proyek **"Larisin: Smart Mobile Vendor Ecosystem"**, sebuah platform *end-to-end* yang dirancang untuk menangani kompleksitas interaksi antara **Admin**, **Vendor**, dan **Customer**.
 
 Berikut adalah bedah teknis (Deep Dive) dari apa yang saya bangun:
 
@@ -35,6 +35,13 @@ Admin memiliki kendali penuh melalui dashboard web yang didukung oleh:
 -   **Jinja2 & Tailwind CSS** untuk UI yang bersih dan responsif.
 -   **Leaflet.js** untuk visualisasi peta lokasi vendor secara *real-time*.
 -   **Chart.js** untuk memantau tren penjualan dan pertumbuhan pengguna.
+
+## 🚀 Potensi Skalabilitas: Lebih dari Sekadar Pedagang Keliling
+
+Meskipun fokus utama saat ini adalah pedagang mikro, arsitektur **Larisin** memiliki potensi skalabilitas yang sangat luas untuk industri F&B modern lainnya:
+*   **Kafe & Restoran:** Mengelola sistem *delivery* mandiri tanpa potongan komisi tinggi dari platform pihak ketiga.
+*   **Enterprise F&B:** Dashboard Admin yang mampu memantau ratusan cabang franchise secara terpusat dengan laporan stok real-time.
+*   **Distribusi B2B:** Mempermudah alur pasokan barang dari produsen ke retailer dengan sistem pemesanan yang secured.
 
 ## 💡 Apa yang Saya Pelajari?
 Membangun sistem ini mengajarkan saya banyak hal tentang pentingnya sinkronisasi antara *state* di mobile dan *state* di server. Mengelola socket connection agar tetap stabil di perangkat mobile serta memastikan integritas data pada transaksi konkuren adalah tantangan yang sangat memuaskan untuk dipecahkan.
