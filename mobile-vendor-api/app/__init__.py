@@ -90,7 +90,14 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*")
+    
+    # Configure Socket.IO with Redis if available
+    redis_url = os.environ.get('REDIS_URL')
+    if redis_url:
+        socketio.init_app(app, cors_allowed_origins="*", message_queue=redis_url)
+    else:
+        socketio.init_app(app, cors_allowed_origins="*")
+        
     limiter.init_app(app)
     CORS(app)
     
